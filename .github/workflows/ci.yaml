@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  Prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      emsdk_version: ${{ steps.get_emsdk_version.outputs.emsdk_version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 1
+      - name: EMSDK require full checkout
+        id: get_emsdk_version
+        working-directory: "third_party/emsdk"
+        run: |
+          git fetch --tags
+          echo "emsdk_version=$(git describe --tags --abbrev=0)" >> "${GITHUB_OUTPUT}"
+      - name: Tar code
+        run: |
+          tar -czf "../project.tar.gz" -C .. "$(basename "${PWD}")"
+          mv "../project.tar.gz" "./project.tar.gz"
+      - name: Upload code
+        uses: actions/upload-artifact@v6
+        with:
+          name: project
+          path: ./project.tar.gz
+          retention-days: 1
+  Linux:
+    needs: Prepare
+    strategy:
+      matrix:
+        runs-on: ['ubuntu-24.04-arm', 'ubuntu-24.04']
+        platform: ['linux/arm64', 'linux/i386', 'linux/amd64', 'linux/s390x']
+        exclude:
+          - runs-on: 'ubuntu-24.04'
+            platform: 'linux/arm64'
+          - runs-on: 'ubuntu-24.04-arm'
+            platform: 'linux/i386'
+          - runs-on: 'ubuntu-24.04-arm'
+            platform: 'linux/amd64'
+          - runs-on: 'ubuntu-24.04-arm'
+            platform: 'linux/s390x'
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - name: Download project code
+        uses: actions/download-artifact@v7
+        with:
+          name: project
+          path: .
+      - name: Extract project code
+        run: |
+          tar -xzf "project.tar.gz" --strip-components=1
+          rm -rf "project.tar.gz"
+      - name: Setup QEMU
+        if: ${{ matrix.platform == 'linux/s390x' && '1' || '0' }}
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+        with:
+          platforms: "s390x"
+      - name: Build container
+        run: |
+          docker build \
+            --tag "ci" \
+            --build-arg PLATFORM="${{ matrix.platform }}" \
+            --build-arg ENABLE_VALGRIND="${{ matrix.platform == 'linux/s390x' && '0' || '1' }}" \
+            --build-arg ENABLE_CLANG="${{ (matrix.platform == 'linux/s390x' || matrix.platform == 'linux/i386') && '0' || '1' }}" \
+            --build-arg ENABLE_EMSDK="${{ (matrix.platform == 'linux/s390x' || matrix.platform == 'linux/i386') && '0' || '1' }}" \
+            --build-arg EMSDK_VERSION="${{ needs.Prepare.outputs.emsdk_version }}" \
+            --target "ci" \
+            .
+      - name: Build and test on container
+        run: |
+          docker run --rm --platform=${{ matrix.platform }} -i "ci"
+  macOS:
+    needs: Prepare
+    strategy:
+      matrix:
+        runs-on:
+          - macos-15
+          - macos-15-intel
+        type: ['Debug', 'Release']
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - name: Download project code
+        uses: actions/download-artifact@v7
+        with:
+          name: project
+          path: .
+      - name: Extract project code
+        run: |
+          tar -xzf "project.tar.gz" --strip-components=1
+          rm -rf "project.tar.gz"
+      - name: Build and test
+        run: |
+          cmake -B "build" -DCMAKE_BUILD_TYPE="${{ matrix.type }}" -DLIERRE_USE_TESTS=ON .
+          cmake --build "build" --config "${{ matrix.type }}" --parallel
+          ctest --build-config "${{ matrix.type }}" --test-dir "build" --output-on-failure --parallel
+  Windows:
+    needs: Prepare
+    strategy:
+      matrix:
+        type: ['Debug', 'Release']
+        vs_version:
+          - { runs-on: 'windows-2022', generator: 'Visual Studio 17 2022', architecture: 'x64' }
+          - { runs-on: 'windows-2022', generator: 'Visual Studio 17 2022', architecture: 'Win32' }
+          - { runs-on: 'windows-2025', generator: 'Visual Studio 17 2022', architecture: 'x64' }
+          - { runs-on: 'windows-2025', generator: 'Visual Studio 17 2022', architecture: 'Win32' }
+          - { runs-on: 'windows-11-arm', generator: 'Visual Studio 17 2022', architecture: 'ARM64' }
+    runs-on: ${{ matrix.vs_version.runs-on }}
+    steps:
+      - name: Download project code
+        uses: actions/download-artifact@v7
+        with:
+          name: project
+      - name: Extract code
+        run: |
+          tar -xzf "project.tar.gz" --strip-components=1
+          Remove-Item "project.tar.gz" -Force
+      - name: Build and test
+        run: |
+          cmake -B "build" -G "${{ matrix.vs_version.generator }}" -A "${{ matrix.vs_version.architecture }}" -DCMAKE_BUILD_TYPE="${{ matrix.type }}" -DLIERRE_USE_TESTS=ON .
+          cmake --build "build" --config "${{ matrix.type }}" --parallel
+          ctest --build-config "${{ matrix.type }}" --test-dir "build" --output-on-failure --parallel

@@ -1,0 +1,49 @@
+name: Coverage
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: true
+          fetch-depth: 1
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y "cmake" "gcc" "lcov"
+      - name: Configure CMake
+        run: |
+          cmake -B "build" -DCMAKE_BUILD_TYPE="Debug" -DLIERRE_USE_COVERAGE=ON -DLIERRE_USE_TESTS=ON
+      - name: Build
+        run: cmake --build "build" --parallel
+      - name: Generate coverage report
+        run: cmake --build "build" --target coverage
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/coverage/html
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
