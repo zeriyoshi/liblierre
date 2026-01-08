@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.25)
 project(lierre
-  VERSION 0.0.0
+  VERSION 1.0.0
   LANGUAGES C
   DESCRIPTION "QR code encoding and decoding library"
 )
