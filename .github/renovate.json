@@ -1,0 +1,45 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "automerge": false,
+  "prHourlyLimit": 0,
+  "git-submodules": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "description": "Semver format",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        "third_party/emsdk",
+        "third_party/libpoporon",
+        "third_party/unity"
+      ],
+      "versioning": "semver-coerced"
+    },
+    {
+      "description": "Custom tag format",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        "third_party/valgrind"
+      ],
+      "versioning": "regex:^VALGRIND_(?<major>\\d+)_(?<minor>\\d+)_(?<patch>\\d+)$"
+    },
+    {
+      "description": "Disable digest updates for git submodules",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
+    }
+  ]
+}

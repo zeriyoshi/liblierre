@@ -16,27 +16,23 @@
 #include "unity.h"
 
 static const int16_t EXPECTED_CAPACITY_L[][5] = {
-    {1, 41, 25, 17, 10},   {2, 77, 47, 32, 20},    {3, 127, 77, 53, 32},
-    {5, 255, 154, 106, 65}, {10, 652, 395, 271, 167}, {20, 2061, 1249, 858, 528},
-    {40, 7089, 4296, 2953, 1817},
+    {1, 41, 25, 17, 10},      {2, 77, 47, 32, 20},        {3, 127, 77, 53, 32},         {5, 255, 154, 106, 65},
+    {10, 652, 395, 271, 167}, {20, 2061, 1249, 858, 528}, {40, 7089, 4296, 2953, 1817},
 };
 
 static const int16_t EXPECTED_CAPACITY_M[][5] = {
-    {1, 34, 20, 14, 8},   {2, 63, 38, 26, 16},    {3, 101, 61, 42, 26},
-    {5, 202, 122, 84, 52}, {10, 513, 311, 213, 131}, {20, 1600, 970, 666, 410},
-    {40, 5596, 3391, 2331, 1435},
+    {1, 34, 20, 14, 8},       {2, 63, 38, 26, 16},       {3, 101, 61, 42, 26},         {5, 202, 122, 84, 52},
+    {10, 513, 311, 213, 131}, {20, 1600, 970, 666, 410}, {40, 5596, 3391, 2331, 1435},
 };
 
 static const int16_t EXPECTED_CAPACITY_Q[][5] = {
-    {1, 27, 16, 11, 7},   {2, 48, 29, 20, 12},   {3, 77, 47, 32, 20},
-    {5, 144, 87, 60, 37}, {10, 364, 221, 151, 93}, {20, 1159, 702, 482, 297},
-    {40, 3993, 2420, 1663, 1024},
+    {1, 27, 16, 11, 7},      {2, 48, 29, 20, 12},       {3, 77, 47, 32, 20},          {5, 144, 87, 60, 37},
+    {10, 364, 221, 151, 93}, {20, 1159, 702, 482, 297}, {40, 3993, 2420, 1663, 1024},
 };
 
 static const int16_t EXPECTED_CAPACITY_H[][5] = {
-    {1, 17, 10, 7, 4},    {2, 34, 20, 14, 8},    {3, 58, 35, 24, 15},
-    {5, 106, 64, 44, 27}, {10, 288, 174, 119, 74}, {20, 919, 557, 382, 235},
-    {40, 3057, 1852, 1273, 784},
+    {1, 17, 10, 7, 4},       {2, 34, 20, 14, 8},       {3, 58, 35, 24, 15},         {5, 106, 64, 44, 27},
+    {10, 288, 174, 119, 74}, {20, 919, 557, 382, 235}, {40, 3057, 1852, 1273, 784},
 };
 
 void setUp(void)
@@ -813,20 +809,21 @@ void test_writer_version_boundary_all_ecc(void)
 
 void test_writer_char_capacity_numeric_mode(void)
 {
-    const int16_t (*capacity_tables[])[5] = {
-        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    const int16_t (*capacity_tables[])[5] = {EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q,
+                                             EXPECTED_CAPACITY_H};
     lierre_writer_param_t param;
     lierre_qr_version_t ver;
     lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
     uint8_t *data;
     int16_t expected_ver, max_chars;
-    size_t ecl, i, test_count, table_sizes[] = {
-        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
-        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
-        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
-        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
-    };
-    
+    size_t ecl, i, test_count,
+        table_sizes[] = {
+            sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+            sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+            sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+            sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+        };
+
     for (ecl = 0; ecl < 4; ecl++) {
         test_count = table_sizes[ecl];
         for (i = 0; i < test_count; i++) {
@@ -859,19 +856,20 @@ void test_writer_char_capacity_numeric_mode(void)
 
 void test_writer_char_capacity_alphanumeric_mode(void)
 {
-    const int16_t (*capacity_tables[])[5] = {
-        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    const int16_t (*capacity_tables[])[5] = {EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q,
+                                             EXPECTED_CAPACITY_H};
     lierre_writer_param_t param;
     lierre_qr_version_t ver;
     lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
     uint8_t *data;
     int16_t expected_ver, max_chars;
-    size_t ecl, i, test_count, table_sizes[] = {
-        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
-        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
-        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
-        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
-    };
+    size_t ecl, i, test_count,
+        table_sizes[] = {
+            sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+            sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+            sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+            sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+        };
 
     for (ecl = 0; ecl < 4; ecl++) {
         test_count = table_sizes[ecl];
@@ -906,19 +904,20 @@ void test_writer_char_capacity_alphanumeric_mode(void)
 
 void test_writer_char_capacity_byte_mode(void)
 {
-    const int16_t (*capacity_tables[])[5] = {
-        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    const int16_t (*capacity_tables[])[5] = {EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q,
+                                             EXPECTED_CAPACITY_H};
     lierre_writer_param_t param;
     lierre_qr_version_t ver;
     lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
     uint8_t *data;
     int16_t expected_ver, max_chars;
-    size_t ecl, i, test_count, table_sizes[] = {
-        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
-        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
-        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
-        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
-    };
+    size_t ecl, i, test_count,
+        table_sizes[] = {
+            sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+            sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+            sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+            sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+        };
 
     for (ecl = 0; ecl < 4; ecl++) {
         test_count = table_sizes[ecl];
@@ -952,20 +951,21 @@ void test_writer_char_capacity_byte_mode(void)
 
 void test_writer_char_capacity_kanji_mode(void)
 {
-    const int16_t (*capacity_tables[])[5] = {
-        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    const int16_t (*capacity_tables[])[5] = {EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q,
+                                             EXPECTED_CAPACITY_H};
     lierre_writer_param_t param;
     lierre_qr_version_t ver;
     lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
     /* Shift-JIS: "あ" (0x82, 0xA0) */
     uint8_t kanji_pair[2] = {0x82, 0xA0}, *data;
     int16_t expected_ver, max_chars;
-    size_t ecl, i, j, test_count, byte_len, table_sizes[] = {
-        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
-        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
-        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
-        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
-    };
+    size_t ecl, i, j, test_count, byte_len,
+        table_sizes[] = {
+            sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+            sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+            sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+            sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+        };
 
     for (ecl = 0; ecl < 4; ecl++) {
         test_count = table_sizes[ecl];
