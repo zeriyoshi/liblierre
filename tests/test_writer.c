@@ -674,6 +674,121 @@ void test_writer_write_combined_params(void)
     }
 }
 
+void test_writer_version_boundary_byte_mode(void)
+{
+    const uint8_t *rgba_data;
+    lierre_rgba_t fill = {0, 0, 0, 255}, bg = {255, 255, 255, 255};
+    lierre_writer_param_t param;
+    lierre_writer_t *writer;
+    lierre_reso_t res;
+    lierre_error_t err;
+    uint8_t *data;
+    size_t len, x, y, margin, scale, expected_white, offset;
+
+    scale = 4;
+    margin = 2;
+
+    for (len = 75; len <= 85; len++) {
+        data = (uint8_t *)malloc(len);
+        TEST_ASSERT_NOT_NULL(data);
+        memset(data, 'A', len);
+
+        lierre_writer_param_init(&param, data, len, scale, margin, ECC_LOW, MASK_AUTO, MODE_BYTE);
+
+        TEST_ASSERT_TRUE(lierre_writer_get_res(&param, &res));
+        TEST_ASSERT_GREATER_THAN(0, res.width);
+        TEST_ASSERT_EQUAL(res.width, res.height);
+
+        writer = lierre_writer_create(&param, &fill, &bg);
+        TEST_ASSERT_NOT_NULL(writer);
+
+        err = lierre_writer_write(writer);
+        TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+
+        rgba_data = lierre_writer_get_rgba_data(writer);
+        TEST_ASSERT_NOT_NULL(rgba_data);
+
+        expected_white = margin * scale;
+        for (y = 0; y < expected_white; y++) {
+            for (x = 0; x < res.width; x++) {
+                offset = (y * res.width + x) * 4;
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 0], "Top margin R should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 1], "Top margin G should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 2], "Top margin B should be white");
+            }
+        }
+
+        for (y = res.height - expected_white; y < res.height; y++) {
+            for (x = 0; x < res.width; x++) {
+                offset = (y * res.width + x) * 4;
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 0], "Bottom margin R should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 1], "Bottom margin G should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 2], "Bottom margin B should be white");
+            }
+        }
+
+        for (y = 0; y < res.height; y++) {
+            for (x = 0; x < expected_white; x++) {
+                offset = (y * res.width + x) * 4;
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 0], "Left margin R should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 1], "Left margin G should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 2], "Left margin B should be white");
+            }
+        }
+
+        for (y = 0; y < res.height; y++) {
+            for (x = res.width - expected_white; x < res.width; x++) {
+                offset = (y * res.width + x) * 4;
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 0], "Right margin R should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 1], "Right margin G should be white");
+                TEST_ASSERT_EQUAL_MESSAGE(255, rgba_data[offset + 2], "Right margin B should be white");
+            }
+        }
+
+        lierre_writer_destroy(writer);
+        free(data);
+    }
+}
+
+void test_writer_version_boundary_all_ecc(void)
+{
+    lierre_rgba_t fill = {0, 0, 0, 255}, bg = {255, 255, 255, 255};
+    lierre_writer_param_t param;
+    lierre_writer_t *writer;
+    lierre_reso_t res;
+    lierre_error_t err;
+    lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
+    uint8_t *data;
+    size_t len, ei;
+
+    for (ei = 0; ei < sizeof(ecc_levels) / sizeof(ecc_levels[0]); ei++) {
+        for (len = 10; len <= 100; len++) {
+            data = (uint8_t *)malloc(len);
+            TEST_ASSERT_NOT_NULL(data);
+            memset(data, 'X', len);
+
+            lierre_writer_param_init(&param, data, len, 4, 2, ecc_levels[ei], MASK_AUTO, MODE_BYTE);
+
+            if (!lierre_writer_get_res(&param, &res)) {
+                free(data);
+                continue;
+            }
+
+            writer = lierre_writer_create(&param, &fill, &bg);
+            if (writer == NULL) {
+                free(data);
+                continue;
+            }
+
+            err = lierre_writer_write(writer);
+            TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+
+            lierre_writer_destroy(writer);
+            free(data);
+        }
+    }
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -731,6 +846,8 @@ int main(void)
     RUN_TEST(test_writer_write_version_2_data);
     RUN_TEST(test_writer_write_larger_version);
     RUN_TEST(test_writer_write_combined_params);
+    RUN_TEST(test_writer_version_boundary_byte_mode);
+    RUN_TEST(test_writer_version_boundary_all_ecc);
 
     return UNITY_END();
 }

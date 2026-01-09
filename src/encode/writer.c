@@ -1312,32 +1312,51 @@ extern lierre_error_t lierre_writer_param_init(lierre_writer_param_t *param, uin
 extern lierre_qr_version_t lierre_writer_qr_version(const lierre_writer_param_t *param)
 {
     lierre_qr_version_t ver;
-    const uint16_t *capacity_table;
+    int32_t data_capacity_bits, data_used_bits;
 
     if (!param || !param->data || param->data_size == 0) {
         return LIERRE_WRITER_QR_VERSION_ERR;
     }
 
-    switch (param->ecc_level) {
-    case ECC_LOW:
-        capacity_table = DATA_CAPACITY_LOW;
-        break;
-    case ECC_MEDIUM:
-        capacity_table = DATA_CAPACITY_MEDIUM;
-        break;
-    case ECC_QUARTILE:
-        capacity_table = DATA_CAPACITY_QUARTILE;
-        break;
-    case ECC_HIGH:
-        capacity_table = DATA_CAPACITY_HIGH;
-        break;
-    default:
-        capacity_table = DATA_CAPACITY_LOW;
-        break;
-    }
-
     for (ver = 1; ver <= 40; ver++) {
-        if (param->data_size <= capacity_table[ver]) {
+        data_capacity_bits = lierre_get_num_data_codewords(ver, (uint8_t)param->ecc_level) * QR_PAD_BYTE_BITS;
+
+        switch (param->mode) {
+        case MODE_NUMERIC:
+            data_used_bits = QR_MODE_INDICATOR_BITS +
+                             ((ver < VERSION_THRESHOLD_SMALL)    ? NUMERIC_BITS_SMALL
+                              : (ver < VERSION_THRESHOLD_MEDIUM) ? NUMERIC_BITS_MEDIUM
+                                                                 : NUMERIC_BITS_LARGE) +
+                             (((int32_t)param->data_size / NUMERIC_GROUP_SIZE) * NUMERIC_GROUP_BITS) +
+                             (((int32_t)param->data_size % NUMERIC_GROUP_SIZE == 2)   ? NUMERIC_REMAINDER2_BITS
+                              : ((int32_t)param->data_size % NUMERIC_GROUP_SIZE == 1) ? NUMERIC_REMAINDER1_BITS
+                                                                                      : 0);
+            break;
+        case MODE_ALPHANUMERIC:
+            data_used_bits = QR_MODE_INDICATOR_BITS +
+                             ((ver < VERSION_THRESHOLD_SMALL)    ? ALPHA_BITS_SMALL
+                              : (ver < VERSION_THRESHOLD_MEDIUM) ? ALPHA_BITS_MEDIUM
+                                                                 : ALPHA_BITS_LARGE) +
+                             (((int32_t)param->data_size / ALPHANUMERIC_GROUP_SIZE) * ALPHANUMERIC_GROUP_BITS) +
+                             (((int32_t)param->data_size % ALPHANUMERIC_GROUP_SIZE == 1) ? ALPHANUMERIC_REMAINDER_BITS
+                                                                                         : 0);
+            break;
+        case MODE_KANJI:
+            data_used_bits = QR_MODE_INDICATOR_BITS +
+                             ((ver < VERSION_THRESHOLD_SMALL)    ? KANJI_BITS_SMALL
+                              : (ver < VERSION_THRESHOLD_MEDIUM) ? KANJI_BITS_MEDIUM
+                                                                 : KANJI_BITS_LARGE) +
+                             ((int32_t)param->data_size / 2) * KANJI_ENCODED_BITS;
+            break;
+        case MODE_BYTE:
+        default:
+            data_used_bits = QR_MODE_INDICATOR_BITS +
+                             ((ver < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE) +
+                             (int32_t)param->data_size * QR_PAD_BYTE_BITS;
+            break;
+        }
+
+        if (data_used_bits <= data_capacity_bits) {
             return ver;
         }
     }
