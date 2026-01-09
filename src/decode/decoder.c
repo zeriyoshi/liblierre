@@ -404,7 +404,7 @@ extern lierre_error_t lierre_decoder_process_mt(lierre_decoder_t *decoder, const
         }
 
         for (t = 0; t < active_threads; t++) {
-            lierre_thread_join(threads[i - active_threads + t], NULL);
+            lierre_thread_join(threads[t], NULL);
         }
     }
 
