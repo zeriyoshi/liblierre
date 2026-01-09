@@ -157,23 +157,203 @@ static const int8_t LIERRE_NUM_ERROR_CORRECTION_BLOCKS[4][41] = {
      25, 34, 30, 32, 35, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81},
 };
 
-static const uint16_t DATA_CAPACITY_LOW[41] = {0,    19,   34,   55,   80,   108,  136,  156,  194,  232,  274,
-                                               324,  370,  428,  461,  523,  589,  647,  721,  795,  861,  932,
-                                               1006, 1094, 1174, 1276, 1370, 1468, 1531, 1631, 1735, 1843, 1955,
-                                               2071, 2191, 2306, 2434, 2566, 2702, 2812, 2956};
+static const int16_t LIERRE_DATA_CODEWORDS[4][41] = {
+    /* ECL L */
+    {-1, 19, 34, 55, 80, 108, 136, 156, 194, 232, 274, 324, 370, 428, 461, 523, 589, 647,
+     721, 795, 861, 932, 1006, 1094, 1174, 1276, 1370, 1468, 1531, 1631, 1735, 1843, 1955,
+     2071, 2191, 2306, 2434, 2566, 2702, 2812, 2956},
+    /* ECL M */
+    {-1, 16, 28, 44, 64, 86, 108, 124, 154, 182, 216, 254, 290, 334, 365, 415, 453, 507,
+     563, 627, 669, 714, 782, 860, 914, 1000, 1062, 1128, 1193, 1267, 1373, 1455, 1541,
+     1631, 1725, 1812, 1914, 1992, 2102, 2216, 2334},
+    /* ECL Q */
+    {-1, 13, 22, 34, 48, 62, 76, 88, 110, 132, 154, 180, 206, 244, 261, 295, 325, 367,
+     397, 445, 485, 512, 568, 614, 664, 718, 754, 808, 871, 911, 985, 1033, 1115, 1171,
+     1231, 1286, 1354, 1426, 1502, 1582, 1666},
+    /* ECL H */
+    {-1, 9, 16, 26, 36, 46, 60, 66, 86, 100, 122, 140, 158, 180, 197, 223, 253, 283,
+     313, 341, 385, 406, 442, 464, 514, 538, 596, 628, 661, 701, 745, 793, 845, 901,
+     961, 986, 1054, 1096, 1142, 1222, 1276},
+};
 
-static const uint16_t DATA_CAPACITY_MEDIUM[41] = {0,    16,   28,   44,   64,   86,   108,  124,  154,  182,  216,
-                                                  254,  290,  334,  365,  415,  453,  507,  563,  627,  669,  714,
-                                                  782,  860,  914,  1000, 1062, 1128, 1193, 1267, 1373, 1455, 1541,
-                                                  1631, 1725, 1812, 1914, 1992, 2102, 2216, 2334};
-
-static const uint16_t DATA_CAPACITY_QUARTILE[41] = {
-    0,   13,  22,  34,  48,  62,  76,  88,  110, 132, 154,  180,  206,  244,  261,  295,  325,  367,  397,  445, 485,
-    512, 568, 614, 664, 718, 754, 808, 871, 911, 985, 1033, 1115, 1171, 1231, 1286, 1354, 1426, 1502, 1582, 1666};
-
-static const uint16_t DATA_CAPACITY_HIGH[41] = {
-    0,   9,   16,  26,  36,  46,  60,  66,  86,  100, 122, 140, 158, 180, 197, 223,  253,  283,  313,  341, 385,
-    406, 442, 464, 514, 538, 596, 628, 661, 701, 745, 793, 845, 901, 961, 986, 1054, 1096, 1142, 1222, 1276};
+static const int16_t LIERRE_CHAR_CAPACITY[4][41][4] = {
+    /* ECL L */
+    {
+        {-1, -1, -1, -1},         /* version 0 (invalid) */
+        {41, 25, 17, 10},         /* version 1 */
+        {77, 47, 32, 20},         /* version 2 */
+        {127, 77, 53, 32},        /* version 3 */
+        {187, 114, 78, 48},       /* version 4 */
+        {255, 154, 106, 65},      /* version 5 */
+        {322, 195, 134, 82},      /* version 6 */
+        {370, 224, 154, 95},      /* version 7 */
+        {461, 279, 192, 118},     /* version 8 */
+        {552, 335, 230, 141},     /* version 9 */
+        {652, 395, 271, 167},     /* version 10 */
+        {772, 468, 321, 198},     /* version 11 */
+        {883, 535, 367, 226},     /* version 12 */
+        {1022, 619, 425, 262},    /* version 13 */
+        {1101, 667, 458, 282},    /* version 14 */
+        {1250, 758, 520, 320},    /* version 15 */
+        {1408, 854, 586, 361},    /* version 16 */
+        {1548, 938, 644, 397},    /* version 17 */
+        {1725, 1046, 718, 442},   /* version 18 */
+        {1903, 1153, 792, 488},   /* version 19 */
+        {2061, 1249, 858, 528},   /* version 20 */
+        {2232, 1352, 929, 572},   /* version 21 */
+        {2409, 1460, 1003, 618},  /* version 22 */
+        {2620, 1588, 1091, 672},  /* version 23 */
+        {2812, 1704, 1171, 721},  /* version 24 */
+        {3057, 1853, 1273, 784},  /* version 25 */
+        {3283, 1990, 1367, 842},  /* version 26 */
+        {3517, 2132, 1465, 902},  /* version 27 */
+        {3669, 2223, 1528, 940},  /* version 28 */
+        {3909, 2369, 1628, 1002}, /* version 29 */
+        {4158, 2520, 1732, 1066}, /* version 30 */
+        {4417, 2677, 1840, 1132}, /* version 31 */
+        {4686, 2840, 1952, 1201}, /* version 32 */
+        {4965, 3009, 2068, 1273}, /* version 33 */
+        {5253, 3183, 2188, 1347}, /* version 34 */
+        {5529, 3351, 2303, 1417}, /* version 35 */
+        {5836, 3537, 2431, 1496}, /* version 36 */
+        {6153, 3729, 2563, 1577}, /* version 37 */
+        {6479, 3927, 2699, 1661}, /* version 38 */
+        {6743, 4087, 2809, 1729}, /* version 39 */
+        {7089, 4296, 2953, 1817}, /* version 40 */
+    },
+    /* ECL M */
+    {
+        {-1, -1, -1, -1},         /* version 0 (invalid) */
+        {34, 20, 14, 8},          /* version 1 */
+        {63, 38, 26, 16},         /* version 2 */
+        {101, 61, 42, 26},        /* version 3 */
+        {149, 90, 62, 38},        /* version 4 */
+        {202, 122, 84, 52},       /* version 5 */
+        {255, 154, 106, 65},      /* version 6 */
+        {293, 178, 122, 75},      /* version 7 */
+        {365, 221, 152, 93},      /* version 8 */
+        {432, 262, 180, 111},     /* version 9 */
+        {513, 311, 213, 131},     /* version 10 */
+        {604, 366, 251, 155},     /* version 11 */
+        {691, 419, 287, 177},     /* version 12 */
+        {796, 483, 331, 204},     /* version 13 */
+        {871, 528, 362, 223},     /* version 14 */
+        {991, 600, 412, 254},     /* version 15 */
+        {1082, 656, 450, 277},    /* version 16 */
+        {1212, 734, 504, 310},    /* version 17 */
+        {1346, 816, 560, 345},    /* version 18 */
+        {1500, 909, 624, 384},    /* version 19 */
+        {1600, 970, 666, 410},    /* version 20 */
+        {1708, 1035, 711, 438},   /* version 21 */
+        {1872, 1134, 779, 480},   /* version 22 */
+        {2059, 1248, 857, 528},   /* version 23 */
+        {2188, 1326, 911, 561},   /* version 24 */
+        {2395, 1451, 997, 614},   /* version 25 */
+        {2544, 1542, 1059, 652},  /* version 26 */
+        {2701, 1637, 1125, 692},  /* version 27 */
+        {2857, 1732, 1190, 732},  /* version 28 */
+        {3035, 1839, 1264, 778},  /* version 29 */
+        {3289, 1994, 1370, 843},  /* version 30 */
+        {3486, 2113, 1452, 894},  /* version 31 */
+        {3693, 2238, 1538, 947},  /* version 32 */
+        {3909, 2369, 1628, 1002}, /* version 33 */
+        {4134, 2506, 1722, 1060}, /* version 34 */
+        {4343, 2632, 1809, 1113}, /* version 35 */
+        {4588, 2780, 1911, 1176}, /* version 36 */
+        {4775, 2894, 1989, 1224}, /* version 37 */
+        {5039, 3054, 2099, 1292}, /* version 38 */
+        {5313, 3220, 2213, 1362}, /* version 39 */
+        {5596, 3391, 2331, 1435}, /* version 40 */
+    },
+    /* ECL Q */
+    {
+        {-1, -1, -1, -1},         /* version 0 (invalid) */
+        {27, 16, 11, 7},          /* version 1 */
+        {48, 29, 20, 12},         /* version 2 */
+        {77, 47, 32, 20},         /* version 3 */
+        {111, 67, 46, 28},        /* version 4 */
+        {144, 87, 60, 37},        /* version 5 */
+        {178, 108, 74, 45},       /* version 6 */
+        {207, 125, 86, 53},       /* version 7 */
+        {259, 157, 108, 66},      /* version 8 */
+        {312, 189, 130, 80},      /* version 9 */
+        {364, 221, 151, 93},      /* version 10 */
+        {427, 259, 177, 109},     /* version 11 */
+        {489, 296, 203, 125},     /* version 12 */
+        {580, 352, 241, 149},     /* version 13 */
+        {621, 376, 258, 159},     /* version 14 */
+        {703, 426, 292, 180},     /* version 15 */
+        {775, 470, 322, 198},     /* version 16 */
+        {876, 531, 364, 224},     /* version 17 */
+        {948, 574, 394, 243},     /* version 18 */
+        {1063, 644, 442, 272},    /* version 19 */
+        {1159, 702, 482, 297},    /* version 20 */
+        {1224, 742, 509, 314},    /* version 21 */
+        {1358, 823, 565, 348},    /* version 22 */
+        {1468, 890, 611, 376},    /* version 23 */
+        {1588, 963, 661, 407},    /* version 24 */
+        {1718, 1041, 715, 440},   /* version 25 */
+        {1804, 1094, 751, 462},   /* version 26 */
+        {1933, 1172, 805, 496},   /* version 27 */
+        {2085, 1263, 868, 534},   /* version 28 */
+        {2181, 1322, 908, 559},   /* version 29 */
+        {2358, 1429, 982, 604},   /* version 30 */
+        {2473, 1499, 1030, 634},  /* version 31 */
+        {2670, 1618, 1112, 684},  /* version 32 */
+        {2805, 1700, 1168, 719},  /* version 33 */
+        {2949, 1787, 1228, 756},  /* version 34 */
+        {3081, 1867, 1283, 790},  /* version 35 */
+        {3244, 1966, 1351, 832},  /* version 36 */
+        {3417, 2071, 1423, 876},  /* version 37 */
+        {3599, 2181, 1499, 923},  /* version 38 */
+        {3791, 2298, 1579, 972},  /* version 39 */
+        {3993, 2420, 1663, 1024}, /* version 40 */
+    },
+    /* ECL H */
+    {
+        {-1, -1, -1, -1},         /* version 0 (invalid) */
+        {17, 10, 7, 4},           /* version 1 */
+        {34, 20, 14, 8},          /* version 2 */
+        {58, 35, 24, 15},         /* version 3 */
+        {82, 50, 34, 21},         /* version 4 */
+        {106, 64, 44, 27},        /* version 5 */
+        {139, 84, 58, 36},        /* version 6 */
+        {154, 93, 64, 39},        /* version 7 */
+        {202, 122, 84, 52},       /* version 8 */
+        {235, 143, 98, 60},       /* version 9 */
+        {288, 174, 119, 74},      /* version 10 */
+        {331, 200, 137, 85},      /* version 11 */
+        {374, 227, 155, 96},      /* version 12 */
+        {427, 259, 177, 109},     /* version 13 */
+        {468, 283, 194, 120},     /* version 14 */
+        {530, 321, 220, 136},     /* version 15 */
+        {602, 365, 250, 154},     /* version 16 */
+        {674, 408, 280, 173},     /* version 17 */
+        {746, 452, 310, 191},     /* version 18 */
+        {813, 493, 338, 208},     /* version 19 */
+        {919, 557, 382, 235},     /* version 20 */
+        {969, 587, 403, 248},     /* version 21 */
+        {1056, 640, 439, 270},    /* version 22 */
+        {1108, 672, 461, 284},    /* version 23 */
+        {1228, 744, 511, 315},    /* version 24 */
+        {1286, 779, 535, 330},    /* version 25 */
+        {1425, 864, 593, 365},    /* version 26 */
+        {1501, 910, 625, 385},    /* version 27 */
+        {1581, 958, 658, 405},    /* version 28 */
+        {1677, 1016, 698, 430},   /* version 29 */
+        {1782, 1080, 742, 457},   /* version 30 */
+        {1897, 1150, 790, 486},   /* version 31 */
+        {2022, 1226, 842, 518},   /* version 32 */
+        {2157, 1307, 898, 553},   /* version 33 */
+        {2301, 1394, 958, 590},   /* version 34 */
+        {2361, 1431, 983, 605},   /* version 35 */
+        {2524, 1530, 1051, 647},  /* version 36 */
+        {2625, 1591, 1093, 673},  /* version 37 */
+        {2735, 1658, 1139, 701},  /* version 38 */
+        {2927, 1774, 1219, 750},  /* version 39 */
+        {3057, 1852, 1273, 784},  /* version 40 */
+    },
+};
 
 static inline void lierre_append_bits(uint32_t val, uint8_t num_bits, uint8_t buffer[], int32_t *bit_len)
 {
@@ -201,8 +381,11 @@ static inline int32_t lierre_get_num_raw_data_modules(uint8_t ver)
 
 static inline int32_t lierre_get_num_data_codewords(uint8_t version, uint8_t ecl)
 {
-    return (lierre_get_num_raw_data_modules(version) >> 3) -
-           LIERRE_ECC_CODEWORDS_PER_BLOCK[ecl][version] * LIERRE_NUM_ERROR_CORRECTION_BLOCKS[ecl][version];
+    if (ecl > 3 || version < 1 || version > 40) {
+        return LIERRE_DATA_CODEWORDS[0][version < 1 ? 1 : (version > 40 ? 40 : version)];
+    }
+
+    return LIERRE_DATA_CODEWORDS[ecl][version];
 }
 
 static inline void lierre_add_ecc_and_interleave(uint8_t data[], uint8_t version, uint8_t ecl, uint8_t result[])
@@ -799,6 +982,7 @@ static inline int8_t lierre_alphanumeric_char_value(uint8_t c)
     if (c >= '0' && c <= '9') {
         return (int8_t)(c - '0');
     }
+
     if (c >= 'A' && c <= 'Z') {
         return (int8_t)(c - 'A' + ALPHA_LETTER_OFFSET);
     }
@@ -997,13 +1181,11 @@ static inline int32_t lierre_kanji_count_bits(uint8_t version, size_t char_count
 static inline bool lierre_encode_kanji(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                        uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
+    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits, high_byte, low_byte, intermediate, encoded_value;
     int8_t version, best_mask;
-    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
-    int32_t count_bits;
+    uint16_t sjis_char;
     uint8_t pad_byte;
     size_t idx, char_count;
-    uint16_t sjis_char;
-    int32_t high_byte, low_byte, intermediate, encoded_value;
 
     char_count = data_len / 2;
 
@@ -1110,10 +1292,10 @@ static inline bool lierre_encode_eci(const uint8_t *data, size_t data_len, uint8
                                      uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask,
                                      uint32_t eci_value)
 {
+    uint8_t pad_byte;
     int8_t version, best_mask;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
     int32_t eci_header_bits;
-    uint8_t pad_byte;
 
     eci_header_bits = lierre_eci_header_bits(eci_value);
 
@@ -1205,9 +1387,9 @@ static inline bool lierre_encode_eci(const uint8_t *data, size_t data_len, uint8
 static inline bool lierre_encode_binary(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                         uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
+    uint8_t pad_byte;
     int8_t version, best_mask;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
-    uint8_t pad_byte;
 
     for (version = min_version;; version++) {
         data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
@@ -1312,51 +1494,40 @@ extern lierre_error_t lierre_writer_param_init(lierre_writer_param_t *param, uin
 extern lierre_qr_version_t lierre_writer_qr_version(const lierre_writer_param_t *param)
 {
     lierre_qr_version_t ver;
-    int32_t data_capacity_bits, data_used_bits;
+    uint8_t ecl, mode_idx;
+    size_t char_count;
 
     if (!param || !param->data || param->data_size == 0) {
         return LIERRE_WRITER_QR_VERSION_ERR;
     }
 
+    ecl = (uint8_t)param->ecc_level;
+    if (ecl > 3) {
+        ecl = 0;
+    }
+
+    switch (param->mode) {
+    case MODE_NUMERIC:
+        mode_idx = 0;
+        char_count = param->data_size;
+        break;
+    case MODE_ALPHANUMERIC:
+        mode_idx = 1;
+        char_count = param->data_size;
+        break;
+    case MODE_KANJI:
+        mode_idx = 3;
+        char_count = param->data_size / 2;
+        break;
+    case MODE_BYTE:
+    default:
+        mode_idx = 2;
+        char_count = param->data_size;
+        break;
+    }
+
     for (ver = 1; ver <= 40; ver++) {
-        data_capacity_bits = lierre_get_num_data_codewords(ver, (uint8_t)param->ecc_level) * QR_PAD_BYTE_BITS;
-
-        switch (param->mode) {
-        case MODE_NUMERIC:
-            data_used_bits = QR_MODE_INDICATOR_BITS +
-                             ((ver < VERSION_THRESHOLD_SMALL)    ? NUMERIC_BITS_SMALL
-                              : (ver < VERSION_THRESHOLD_MEDIUM) ? NUMERIC_BITS_MEDIUM
-                                                                 : NUMERIC_BITS_LARGE) +
-                             (((int32_t)param->data_size / NUMERIC_GROUP_SIZE) * NUMERIC_GROUP_BITS) +
-                             (((int32_t)param->data_size % NUMERIC_GROUP_SIZE == 2)   ? NUMERIC_REMAINDER2_BITS
-                              : ((int32_t)param->data_size % NUMERIC_GROUP_SIZE == 1) ? NUMERIC_REMAINDER1_BITS
-                                                                                      : 0);
-            break;
-        case MODE_ALPHANUMERIC:
-            data_used_bits = QR_MODE_INDICATOR_BITS +
-                             ((ver < VERSION_THRESHOLD_SMALL)    ? ALPHA_BITS_SMALL
-                              : (ver < VERSION_THRESHOLD_MEDIUM) ? ALPHA_BITS_MEDIUM
-                                                                 : ALPHA_BITS_LARGE) +
-                             (((int32_t)param->data_size / ALPHANUMERIC_GROUP_SIZE) * ALPHANUMERIC_GROUP_BITS) +
-                             (((int32_t)param->data_size % ALPHANUMERIC_GROUP_SIZE == 1) ? ALPHANUMERIC_REMAINDER_BITS
-                                                                                         : 0);
-            break;
-        case MODE_KANJI:
-            data_used_bits = QR_MODE_INDICATOR_BITS +
-                             ((ver < VERSION_THRESHOLD_SMALL)    ? KANJI_BITS_SMALL
-                              : (ver < VERSION_THRESHOLD_MEDIUM) ? KANJI_BITS_MEDIUM
-                                                                 : KANJI_BITS_LARGE) +
-                             ((int32_t)param->data_size / 2) * KANJI_ENCODED_BITS;
-            break;
-        case MODE_BYTE:
-        default:
-            data_used_bits = QR_MODE_INDICATOR_BITS +
-                             ((ver < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE) +
-                             (int32_t)param->data_size * QR_PAD_BYTE_BITS;
-            break;
-        }
-
-        if (data_used_bits <= data_capacity_bits) {
+        if ((size_t)LIERRE_CHAR_CAPACITY[ecl][ver][mode_idx] >= char_count) {
             return ver;
         }
     }
@@ -1492,11 +1663,10 @@ extern void lierre_writer_destroy(lierre_writer_t *writer)
 
 extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
 {
-    uint8_t *temp_buffer, *qr_buffer;
     lierre_qr_version_t ver;
-    int32_t qr_size, x, y, px, py;
+    uint8_t *temp_buffer, *qr_buffer, *pixel;
+    int32_t qr_size, x, y, px, py;    
     size_t scale, margin, sx, sy, img_x, img_y, offset;
-    uint8_t *pixel;
     bool is_dark;
 
     if (!writer || !writer->param || !writer->data || !writer->data->data) {

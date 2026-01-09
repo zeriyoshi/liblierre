@@ -15,6 +15,30 @@
 
 #include "unity.h"
 
+static const int16_t EXPECTED_CAPACITY_L[][5] = {
+    {1, 41, 25, 17, 10},   {2, 77, 47, 32, 20},    {3, 127, 77, 53, 32},
+    {5, 255, 154, 106, 65}, {10, 652, 395, 271, 167}, {20, 2061, 1249, 858, 528},
+    {40, 7089, 4296, 2953, 1817},
+};
+
+static const int16_t EXPECTED_CAPACITY_M[][5] = {
+    {1, 34, 20, 14, 8},   {2, 63, 38, 26, 16},    {3, 101, 61, 42, 26},
+    {5, 202, 122, 84, 52}, {10, 513, 311, 213, 131}, {20, 1600, 970, 666, 410},
+    {40, 5596, 3391, 2331, 1435},
+};
+
+static const int16_t EXPECTED_CAPACITY_Q[][5] = {
+    {1, 27, 16, 11, 7},   {2, 48, 29, 20, 12},   {3, 77, 47, 32, 20},
+    {5, 144, 87, 60, 37}, {10, 364, 221, 151, 93}, {20, 1159, 702, 482, 297},
+    {40, 3993, 2420, 1663, 1024},
+};
+
+static const int16_t EXPECTED_CAPACITY_H[][5] = {
+    {1, 17, 10, 7, 4},    {2, 34, 20, 14, 8},    {3, 58, 35, 24, 15},
+    {5, 106, 64, 44, 27}, {10, 288, 174, 119, 74}, {20, 919, 557, 382, 235},
+    {40, 3057, 1852, 1273, 784},
+};
+
 void setUp(void)
 {
 }
@@ -650,12 +674,10 @@ void test_writer_write_combined_params(void)
     lierre_writer_param_t param;
     lierre_writer_t *writer;
     lierre_error_t err;
-    uint8_t data[] = "Combined test with various parameters";
     lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
     lierre_writer_mask_t masks[] = {MASK_0, MASK_2, MASK_4, MASK_6};
-    size_t scales[] = {1, 2, 4};
-    size_t margins[] = {0, 1, 4};
-    size_t ei, mi, si, mgi;
+    uint8_t data[] = "Combined test with various parameters";
+    size_t scales[] = {1, 2, 4}, margins[] = {0, 1, 4}, ei, mi, si, mgi;
 
     for (ei = 0; ei < sizeof(ecc_levels) / sizeof(ecc_levels[0]); ei++) {
         for (mi = 0; mi < sizeof(masks) / sizeof(masks[0]); mi++) {
@@ -789,6 +811,305 @@ void test_writer_version_boundary_all_ecc(void)
     }
 }
 
+void test_writer_char_capacity_numeric_mode(void)
+{
+    const int16_t (*capacity_tables[])[5] = {
+        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
+    uint8_t *data;
+    int16_t expected_ver, max_chars;
+    size_t ecl, i, test_count, table_sizes[] = {
+        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+    };
+    
+    for (ecl = 0; ecl < 4; ecl++) {
+        test_count = table_sizes[ecl];
+        for (i = 0; i < test_count; i++) {
+            expected_ver = capacity_tables[ecl][i][0];
+            max_chars = capacity_tables[ecl][i][1];
+
+            data = (uint8_t *)malloc((size_t)max_chars);
+            TEST_ASSERT_NOT_NULL(data);
+            memset(data, '0', (size_t)max_chars);
+
+            lierre_writer_param_init(&param, data, (size_t)max_chars, 1, 0, ecc_levels[ecl], MASK_AUTO, MODE_NUMERIC);
+            ver = lierre_writer_qr_version(&param);
+            TEST_ASSERT_EQUAL_MESSAGE(expected_ver, ver, "Numeric mode max capacity version mismatch");
+            free(data);
+
+            if (expected_ver < 40) {
+                data = (uint8_t *)malloc((size_t)(max_chars + 1));
+                TEST_ASSERT_NOT_NULL(data);
+                memset(data, '0', (size_t)(max_chars + 1));
+
+                lierre_writer_param_init(&param, data, (size_t)(max_chars + 1), 1, 0, ecc_levels[ecl], MASK_AUTO,
+                                         MODE_NUMERIC);
+                ver = lierre_writer_qr_version(&param);
+                TEST_ASSERT_GREATER_THAN_MESSAGE(expected_ver, ver, "Numeric mode should require higher version");
+                free(data);
+            }
+        }
+    }
+}
+
+void test_writer_char_capacity_alphanumeric_mode(void)
+{
+    const int16_t (*capacity_tables[])[5] = {
+        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
+    uint8_t *data;
+    int16_t expected_ver, max_chars;
+    size_t ecl, i, test_count, table_sizes[] = {
+        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+    };
+
+    for (ecl = 0; ecl < 4; ecl++) {
+        test_count = table_sizes[ecl];
+        for (i = 0; i < test_count; i++) {
+            expected_ver = capacity_tables[ecl][i][0];
+            max_chars = capacity_tables[ecl][i][2];
+
+            data = (uint8_t *)malloc((size_t)max_chars);
+            TEST_ASSERT_NOT_NULL(data);
+            memset(data, 'A', (size_t)max_chars);
+
+            lierre_writer_param_init(&param, data, (size_t)max_chars, 1, 0, ecc_levels[ecl], MASK_AUTO,
+                                     MODE_ALPHANUMERIC);
+            ver = lierre_writer_qr_version(&param);
+            TEST_ASSERT_EQUAL_MESSAGE(expected_ver, ver, "Alphanumeric mode max capacity version mismatch");
+            free(data);
+
+            if (expected_ver < 40) {
+                data = (uint8_t *)malloc((size_t)(max_chars + 1));
+                TEST_ASSERT_NOT_NULL(data);
+                memset(data, 'A', (size_t)(max_chars + 1));
+
+                lierre_writer_param_init(&param, data, (size_t)(max_chars + 1), 1, 0, ecc_levels[ecl], MASK_AUTO,
+                                         MODE_ALPHANUMERIC);
+                ver = lierre_writer_qr_version(&param);
+                TEST_ASSERT_GREATER_THAN_MESSAGE(expected_ver, ver, "Alphanumeric mode should require higher version");
+                free(data);
+            }
+        }
+    }
+}
+
+void test_writer_char_capacity_byte_mode(void)
+{
+    const int16_t (*capacity_tables[])[5] = {
+        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
+    uint8_t *data;
+    int16_t expected_ver, max_chars;
+    size_t ecl, i, test_count, table_sizes[] = {
+        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+    };
+
+    for (ecl = 0; ecl < 4; ecl++) {
+        test_count = table_sizes[ecl];
+        for (i = 0; i < test_count; i++) {
+            expected_ver = capacity_tables[ecl][i][0];
+            max_chars = capacity_tables[ecl][i][3];
+
+            data = (uint8_t *)malloc((size_t)max_chars);
+            TEST_ASSERT_NOT_NULL(data);
+            memset(data, 'X', (size_t)max_chars);
+
+            lierre_writer_param_init(&param, data, (size_t)max_chars, 1, 0, ecc_levels[ecl], MASK_AUTO, MODE_BYTE);
+            ver = lierre_writer_qr_version(&param);
+            TEST_ASSERT_EQUAL_MESSAGE(expected_ver, ver, "Byte mode max capacity version mismatch");
+            free(data);
+
+            if (expected_ver < 40) {
+                data = (uint8_t *)malloc((size_t)(max_chars + 1));
+                TEST_ASSERT_NOT_NULL(data);
+                memset(data, 'X', (size_t)(max_chars + 1));
+
+                lierre_writer_param_init(&param, data, (size_t)(max_chars + 1), 1, 0, ecc_levels[ecl], MASK_AUTO,
+                                         MODE_BYTE);
+                ver = lierre_writer_qr_version(&param);
+                TEST_ASSERT_GREATER_THAN_MESSAGE(expected_ver, ver, "Byte mode should require higher version");
+                free(data);
+            }
+        }
+    }
+}
+
+void test_writer_char_capacity_kanji_mode(void)
+{
+    const int16_t (*capacity_tables[])[5] = {
+        EXPECTED_CAPACITY_L, EXPECTED_CAPACITY_M, EXPECTED_CAPACITY_Q, EXPECTED_CAPACITY_H};
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    lierre_writer_ecc_t ecc_levels[] = {ECC_LOW, ECC_MEDIUM, ECC_QUARTILE, ECC_HIGH};
+    /* Shift-JIS: "あ" (0x82, 0xA0) */
+    uint8_t kanji_pair[2] = {0x82, 0xA0}, *data;
+    int16_t expected_ver, max_chars;
+    size_t ecl, i, j, test_count, byte_len, table_sizes[] = {
+        sizeof(EXPECTED_CAPACITY_L) / sizeof(EXPECTED_CAPACITY_L[0]),
+        sizeof(EXPECTED_CAPACITY_M) / sizeof(EXPECTED_CAPACITY_M[0]),
+        sizeof(EXPECTED_CAPACITY_Q) / sizeof(EXPECTED_CAPACITY_Q[0]),
+        sizeof(EXPECTED_CAPACITY_H) / sizeof(EXPECTED_CAPACITY_H[0]),
+    };
+
+    for (ecl = 0; ecl < 4; ecl++) {
+        test_count = table_sizes[ecl];
+        for (i = 0; i < test_count; i++) {
+            expected_ver = capacity_tables[ecl][i][0];
+            max_chars = capacity_tables[ecl][i][4];
+            byte_len = (size_t)max_chars * 2;
+
+            data = (uint8_t *)malloc(byte_len);
+            TEST_ASSERT_NOT_NULL(data);
+            for (j = 0; j < byte_len; j += 2) {
+                data[j] = kanji_pair[0];
+                data[j + 1] = kanji_pair[1];
+            }
+
+            lierre_writer_param_init(&param, data, byte_len, 1, 0, ecc_levels[ecl], MASK_AUTO, MODE_KANJI);
+            ver = lierre_writer_qr_version(&param);
+            TEST_ASSERT_EQUAL_MESSAGE(expected_ver, ver, "Kanji mode max capacity version mismatch");
+            free(data);
+
+            if (expected_ver < 40) {
+                byte_len = (size_t)(max_chars + 1) * 2;
+                data = (uint8_t *)malloc(byte_len);
+                TEST_ASSERT_NOT_NULL(data);
+                for (j = 0; j < byte_len; j += 2) {
+                    data[j] = kanji_pair[0];
+                    data[j + 1] = kanji_pair[1];
+                }
+
+                lierre_writer_param_init(&param, data, byte_len, 1, 0, ecc_levels[ecl], MASK_AUTO, MODE_KANJI);
+                ver = lierre_writer_qr_version(&param);
+                TEST_ASSERT_GREATER_THAN_MESSAGE(expected_ver, ver, "Kanji mode should require higher version");
+                free(data);
+            }
+        }
+    }
+}
+
+void test_writer_char_capacity_version_boundaries(void)
+{
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    lierre_rgba_t fill = {0, 0, 0, 255};
+    lierre_rgba_t bg = {255, 255, 255, 255};
+    lierre_writer_t *writer;
+    lierre_error_t err;
+    uint8_t *data;
+
+    data = (uint8_t *)malloc(17);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'A', 17);
+    lierre_writer_param_init(&param, data, 17, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(1, ver);
+
+    writer = lierre_writer_create(&param, &fill, &bg);
+    TEST_ASSERT_NOT_NULL(writer);
+    err = lierre_writer_write(writer);
+    TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+    lierre_writer_destroy(writer);
+    free(data);
+
+    data = (uint8_t *)malloc(18);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'A', 18);
+    lierre_writer_param_init(&param, data, 18, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(2, ver);
+
+    writer = lierre_writer_create(&param, &fill, &bg);
+    TEST_ASSERT_NOT_NULL(writer);
+    err = lierre_writer_write(writer);
+    TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+    lierre_writer_destroy(writer);
+    free(data);
+
+    data = (uint8_t *)malloc(230);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'B', 230);
+    lierre_writer_param_init(&param, data, 230, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(9, ver);
+
+    writer = lierre_writer_create(&param, &fill, &bg);
+    TEST_ASSERT_NOT_NULL(writer);
+    err = lierre_writer_write(writer);
+    TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+    lierre_writer_destroy(writer);
+    free(data);
+
+    data = (uint8_t *)malloc(231);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'B', 231);
+    lierre_writer_param_init(&param, data, 231, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(10, ver);
+
+    writer = lierre_writer_create(&param, &fill, &bg);
+    TEST_ASSERT_NOT_NULL(writer);
+    err = lierre_writer_write(writer);
+    TEST_ASSERT_EQUAL(LIERRE_ERROR_SUCCESS, err);
+    lierre_writer_destroy(writer);
+    free(data);
+}
+
+void test_writer_char_capacity_max_version_40(void)
+{
+    lierre_writer_param_t param;
+    lierre_qr_version_t ver;
+    uint8_t *data;
+
+    data = (uint8_t *)malloc(2953);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'Z', 2953);
+    lierre_writer_param_init(&param, data, 2953, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(40, ver);
+    free(data);
+
+    data = (uint8_t *)malloc(2954);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'Z', 2954);
+    lierre_writer_param_init(&param, data, 2954, 1, 0, ECC_LOW, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(QR_VERSION_ERR, ver);
+    free(data);
+
+    data = (uint8_t *)malloc(1273);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'Z', 1273);
+    lierre_writer_param_init(&param, data, 1273, 1, 0, ECC_HIGH, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(40, ver);
+    free(data);
+
+    data = (uint8_t *)malloc(1274);
+    TEST_ASSERT_NOT_NULL(data);
+    memset(data, 'Z', 1274);
+    lierre_writer_param_init(&param, data, 1274, 1, 0, ECC_HIGH, MASK_AUTO, MODE_BYTE);
+    ver = lierre_writer_qr_version(&param);
+    TEST_ASSERT_EQUAL(QR_VERSION_ERR, ver);
+    free(data);
+}
+
 int main(void)
 {
     UNITY_BEGIN();
@@ -848,6 +1169,13 @@ int main(void)
     RUN_TEST(test_writer_write_combined_params);
     RUN_TEST(test_writer_version_boundary_byte_mode);
     RUN_TEST(test_writer_version_boundary_all_ecc);
+
+    RUN_TEST(test_writer_char_capacity_numeric_mode);
+    RUN_TEST(test_writer_char_capacity_alphanumeric_mode);
+    RUN_TEST(test_writer_char_capacity_byte_mode);
+    RUN_TEST(test_writer_char_capacity_kanji_mode);
+    RUN_TEST(test_writer_char_capacity_version_boundaries);
+    RUN_TEST(test_writer_char_capacity_max_version_40);
 
     return UNITY_END();
 }
