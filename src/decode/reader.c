@@ -256,7 +256,7 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
     const uint8_t *pixel;
     lierre_reader_result_t *res;
     lierre_decoder_t *decoder;
-    lierre_decoder_result_t dec_result;
+    lierre_decoder_result_t *dec_result;
     lierre_error_t err;
     uint32_t num_threads, scale, sum, dy, dx, scale_shift, temp;
     uint8_t *gray_data, *scaled_gray, r, g, b, gray;
@@ -265,6 +265,11 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 
     if (!reader || !result || !reader->data || !reader->data->data) {
         return LIERRE_ERROR_INVALID_PARAMS;
+    }
+
+    dec_result = lmalloc(sizeof(lierre_decoder_result_t));
+    if (!dec_result) {
+        return LIERRE_ERROR_DATA_OVERFLOW;
     }
 
     use_mt = (reader->param->strategy_flags & LIERRE_READER_STRATEGY_MT) != 0;
@@ -284,6 +289,7 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 
     gray_data = lmalloc(width * height);
     if (!gray_data) {
+        lfree(dec_result);
         return LIERRE_ERROR_DATA_OVERFLOW;
     }
 
@@ -336,11 +342,12 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
     decoder = lierre_decoder_create();
     if (!decoder) {
         lfree(gray_data);
+        lfree(dec_result);
 
         return LIERRE_ERROR_DATA_OVERFLOW;
     }
 
-    dec_result.count = 0;
+    dec_result->count = 0;
 
     if (reader->param->strategy_flags & LIERRE_READER_STRATEGY_MINIMIZE) {
         use_quirc_grayscale = (reader->param->strategy_flags & LIERRE_READER_STRATEGY_GLAYSCALE) != 0;
@@ -410,14 +417,14 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 
             if (use_mt) {
                 err =
-                    lierre_decoder_process_mt(decoder, scaled_gray, (int32_t)sw, (int32_t)sh, &dec_result, num_threads);
+                    lierre_decoder_process_mt(decoder, scaled_gray, (int32_t)sw, (int32_t)sh, dec_result, num_threads);
             } else {
-                err = lierre_decoder_process(decoder, scaled_gray, (int32_t)sw, (int32_t)sh, &dec_result);
+                err = lierre_decoder_process(decoder, scaled_gray, (int32_t)sw, (int32_t)sh, dec_result);
             }
 
             lfree(scaled_gray);
 
-            if (err == LIERRE_ERROR_SUCCESS && dec_result.count > 0) {
+            if (err == LIERRE_ERROR_SUCCESS && dec_result->count > 0) {
                 break;
             }
         }
@@ -425,14 +432,15 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
         lfree(gray_data);
     } else {
         if (use_mt) {
-            err = lierre_decoder_process_mt(decoder, gray_data, (int32_t)width, (int32_t)height, &dec_result,
+            err = lierre_decoder_process_mt(decoder, gray_data, (int32_t)width, (int32_t)height, dec_result,
                                             num_threads);
         } else {
-            err = lierre_decoder_process(decoder, gray_data, (int32_t)width, (int32_t)height, &dec_result);
+            err = lierre_decoder_process(decoder, gray_data, (int32_t)width, (int32_t)height, dec_result);
         }
         lfree(gray_data);
 
         if (err != LIERRE_ERROR_SUCCESS) {
+            lfree(dec_result);
             lierre_decoder_destroy(decoder);
 
             return err;
@@ -441,48 +449,51 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 
     res = lmalloc(sizeof(lierre_reader_result_t));
     if (!res) {
+        lfree(dec_result);
         lierre_decoder_destroy(decoder);
 
         return LIERRE_ERROR_DATA_OVERFLOW;
     }
 
-    res->num_qr_codes = dec_result.count;
+    res->num_qr_codes = dec_result->count;
     res->qr_code_rects = NULL;
     res->qr_code_datas = NULL;
     res->qr_code_data_sizes = NULL;
 
-    if (dec_result.count > 0) {
-        res->qr_code_rects = lcalloc(dec_result.count, sizeof(lierre_rect_t));
-        res->qr_code_datas = lcalloc(dec_result.count, sizeof(uint8_t *));
-        res->qr_code_data_sizes = lcalloc(dec_result.count, sizeof(size_t));
+    if (dec_result->count > 0) {
+        res->qr_code_rects = lcalloc(dec_result->count, sizeof(lierre_rect_t));
+        res->qr_code_datas = lcalloc(dec_result->count, sizeof(uint8_t *));
+        res->qr_code_data_sizes = lcalloc(dec_result->count, sizeof(size_t));
 
         if (!res->qr_code_rects || !res->qr_code_datas || !res->qr_code_data_sizes) {
             lfree(res->qr_code_rects);
             lfree(res->qr_code_datas);
             lfree(res->qr_code_data_sizes);
             lfree(res);
+            lfree(dec_result);
             lierre_decoder_destroy(decoder);
 
             return LIERRE_ERROR_DATA_OVERFLOW;
         }
 
-        for (i = 0; i < dec_result.count; i++) {
-            res->qr_code_rects[i].origin.x = start_x + dec_result.codes[i].corners[0].x;
-            res->qr_code_rects[i].origin.y = start_y + dec_result.codes[i].corners[0].y;
+        for (i = 0; i < dec_result->count; i++) {
+            res->qr_code_rects[i].origin.x = start_x + dec_result->codes[i].corners[0].x;
+            res->qr_code_rects[i].origin.y = start_y + dec_result->codes[i].corners[0].y;
             res->qr_code_rects[i].size.width =
-                (size_t)(dec_result.codes[i].corners[2].x - dec_result.codes[i].corners[0].x);
+                (size_t)(dec_result->codes[i].corners[2].x - dec_result->codes[i].corners[0].x);
             res->qr_code_rects[i].size.height =
-                (size_t)(dec_result.codes[i].corners[2].y - dec_result.codes[i].corners[0].y);
+                (size_t)(dec_result->codes[i].corners[2].y - dec_result->codes[i].corners[0].y);
 
-            res->qr_code_data_sizes[i] = (size_t)dec_result.codes[i].payload_len;
+            res->qr_code_data_sizes[i] = (size_t)dec_result->codes[i].payload_len;
             res->qr_code_datas[i] = lmalloc(res->qr_code_data_sizes[i] + 1);
             if (res->qr_code_datas[i]) {
-                lmemcpy(res->qr_code_datas[i], dec_result.codes[i].payload, res->qr_code_data_sizes[i]);
+                lmemcpy(res->qr_code_datas[i], dec_result->codes[i].payload, res->qr_code_data_sizes[i]);
                 res->qr_code_datas[i][res->qr_code_data_sizes[i]] = '\0';
             }
         }
     }
 
+    lfree(dec_result);
     lierre_decoder_destroy(decoder);
     *result = res;
 
