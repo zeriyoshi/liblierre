@@ -17,24 +17,12 @@
 #include "../internal/memory.h"
 #include "../internal/structs.h"
 
-#define LIERRE_QR_VERSION_MAX             40
-#define LIERRE_QR_VERSION_MIN             1
-#define LIERRE_QR_VERSION1_SIZE           17
-#define LIERRE_QR_VERSION_SIZE_FORMULA(v) ((v) * 4 + LIERRE_QR_VERSION1_SIZE)
-
+/* Reed-Solomon parameters */
 #define RS_GF256_PRIMITIVE_POLY 0x11D
 #define RS_GF256_GENERATOR_ROOT 0x1
 #define RS_BYTE_BITS            7
 
-#define VERSION_INFO_MIN         7
-#define VERSION_INFO_BITS        12
-#define VERSION_INFO_POLY        0x1F25
-#define VERSION_INFO_SHIFT       11
-#define VERSION_INFO_DATA_SHIFT  12
-#define VERSION_INFO_AREA_WIDTH  3
-#define VERSION_INFO_AREA_HEIGHT 6
-#define VERSION_INFO_OFFSET      11
-
+/* Format information parameters */
 #define FORMAT_POLY            0x537
 #define FORMAT_XOR_MASK        0x5412
 #define FORMAT_POLY_SHIFT      9
@@ -43,6 +31,18 @@
 #define FORMAT_BITS_LOOP_END   6
 #define FORMAT_BITS_LOOP_START 9
 
+/* QR Code version and size */
+#define QR_VERSION_MAX             40
+#define QR_VERSION_MIN             1
+#define QR_VERSION1_SIZE           17
+#define QR_VERSION_SIZE_FORMULA(v) ((v) * 4 + QR_VERSION1_SIZE)
+#define QR_BUFFER_LEN_FOR_VERSION(n) \
+    (((((n) * 4 + 17) * ((n) * 4 + 17) + 7) >> 3) + 1)
+#define QR_BUFFER_LEN_MAX QR_BUFFER_LEN_FOR_VERSION(QR_VERSION_MAX)
+#define QR_RS_DEGREE_MAX  30
+#define QR_MASK_COUNT     8
+
+/* QR Code mode indicators */
 #define QR_MODE_NUMERIC_INDICATOR      0x1
 #define QR_MODE_ALPHANUMERIC_INDICATOR 0x2
 #define QR_MODE_BYTE_INDICATOR         0x4
@@ -52,19 +52,32 @@
 #define QR_TERMINATOR_MAX_BITS         4
 #define QR_PAD_BYTE_BITS               8
 
+/* Version thresholds for character count bits */
 #define VERSION_THRESHOLD_SMALL  10
 #define VERSION_THRESHOLD_MEDIUM 27
-#define NUMERIC_BITS_SMALL       10
-#define NUMERIC_BITS_MEDIUM      12
-#define NUMERIC_BITS_LARGE       14
-#define ALPHA_BITS_SMALL         9
-#define ALPHA_BITS_MEDIUM        11
-#define ALPHA_BITS_LARGE         13
-#define BYTE_BITS_SMALL          8
-#define BYTE_BITS_LARGE          16
-#define KANJI_BITS_SMALL         8
-#define KANJI_BITS_MEDIUM        10
-#define KANJI_BITS_LARGE         12
+#define VERSION_INFO_MIN         7
+#define VERSION_INFO_BITS        12
+#define VERSION_INFO_POLY        0x1F25
+#define VERSION_INFO_SHIFT       11
+#define VERSION_INFO_DATA_SHIFT  12
+#define VERSION_INFO_AREA_WIDTH  3
+#define VERSION_INFO_AREA_HEIGHT 6
+#define VERSION_INFO_OFFSET      11
+
+#define NUMERIC_BITS_SMALL  10
+#define NUMERIC_BITS_MEDIUM 12
+#define NUMERIC_BITS_LARGE  14
+
+#define ALPHA_BITS_SMALL  9
+#define ALPHA_BITS_MEDIUM 11
+#define ALPHA_BITS_LARGE  13
+
+#define BYTE_BITS_SMALL 8
+#define BYTE_BITS_LARGE 16
+
+#define KANJI_BITS_SMALL  8
+#define KANJI_BITS_MEDIUM 10
+#define KANJI_BITS_LARGE  12
 
 #define NUMERIC_GROUP_SIZE      3
 #define NUMERIC_GROUP_BITS      10
@@ -97,14 +110,14 @@
 #define ECI_BITS_3BYTE      24
 #define ECI_DEFAULT_VALUE   26
 
-#define QR_MASK_COUNT 8
+#define FINDER_PATTERN_CENTER   3
+#define FINDER_PATTERN_RADIUS   4
+#define FINDER_QUIET_SIZE       8
+#define FINDER_CORNER_SIZE      9
 
-#define FINDER_PATTERN_CENTER    3
-#define FINDER_PATTERN_RADIUS    4
-#define FINDER_QUIET_SIZE        8
-#define FINDER_CORNER_SIZE       9
-#define TIMING_PATTERN_POSITION  6
-#define TIMING_PATTERN_START     7
+#define TIMING_PATTERN_POSITION 6
+#define TIMING_PATTERN_START    7
+
 #define ALIGNMENT_PATTERN_SIZE   5
 #define ALIGNMENT_PATTERN_OFFSET 2
 #define ALIGNMENT_BASE_POSITION  6
@@ -130,12 +143,7 @@
 #define ALPHA_SLASH_VALUE    43
 #define ALPHA_COLON_VALUE    44
 
-#define LIERRE_QR_BUFFER_LEN_FOR_VERSION(n) (((((n) * 4 + 17) * ((n) * 4 + 17) + 7) >> 3) + 1)
-#define LIERRE_QR_BUFFER_LEN_MAX            LIERRE_QR_BUFFER_LEN_FOR_VERSION(LIERRE_QR_VERSION_MAX)
-
-#define LIERRE_QR_RS_DEGREE_MAX 30
-
-static const int8_t LIERRE_ECC_CODEWORDS_PER_BLOCK[4][41] = {
+static const int8_t ECC_CODEWORDS_PER_BLOCK[4][41] = {
     {-1, 7,  10, 15, 20, 26, 18, 20, 24, 30, 18, 20, 24, 26, 30, 22, 24, 28, 30, 28, 28,
      28, 28, 30, 30, 26, 28, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30},
     {-1, 10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26,
@@ -146,7 +154,7 @@ static const int8_t LIERRE_ECC_CODEWORDS_PER_BLOCK[4][41] = {
      30, 24, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30},
 };
 
-static const int8_t LIERRE_NUM_ERROR_CORRECTION_BLOCKS[4][41] = {
+static const int8_t NUM_ERROR_CORRECTION_BLOCKS[4][41] = {
     {-1, 1, 1, 1,  1,  1,  2,  2,  2,  2,  4,  4,  4,  4,  4,  6,  6,  6,  6,  7, 8,
      8,  9, 9, 10, 12, 12, 12, 13, 14, 15, 16, 17, 18, 19, 19, 20, 21, 22, 24, 25},
     {-1, 1,  1,  1,  2,  2,  4,  4,  4,  5,  5,  5,  8,  9,  9,  10, 10, 11, 13, 14, 16,
@@ -157,7 +165,7 @@ static const int8_t LIERRE_NUM_ERROR_CORRECTION_BLOCKS[4][41] = {
      25, 34, 30, 32, 35, 37, 40, 42, 45, 48, 51, 54, 57, 60, 63, 66, 70, 74, 77, 81},
 };
 
-static const int16_t LIERRE_DATA_CODEWORDS[4][41] = {
+static const int16_t DATA_CODEWORDS[4][41] = {
     /* ECL L */
     {-1,   19,   34,   55,   80,   108,  136,  156,  194,  232,  274,  324,  370,  428,
      461,  523,  589,  647,  721,  795,  861,  932,  1006, 1094, 1174, 1276, 1370, 1468,
@@ -174,7 +182,7 @@ static const int16_t LIERRE_DATA_CODEWORDS[4][41] = {
      406, 442, 464, 514, 538, 596, 628, 661, 701, 745, 793, 845, 901, 961, 986, 1054, 1096, 1142, 1222, 1276},
 };
 
-static const int16_t LIERRE_CHAR_CAPACITY[4][41][4] = {
+static const int16_t CHAR_CAPACITY[4][41][4] = {
     /* ECL L */
     {
         {-1, -1, -1, -1},         /* version 0 (invalid) */
@@ -353,7 +361,7 @@ static const int16_t LIERRE_CHAR_CAPACITY[4][41][4] = {
     },
 };
 
-static inline void lierre_append_bits(uint32_t val, uint8_t num_bits, uint8_t buffer[], int32_t *bit_len)
+static inline void append_bits(uint32_t val, uint8_t num_bits, uint8_t buffer[], int32_t *bit_len)
 {
     int32_t i;
 
@@ -362,7 +370,7 @@ static inline void lierre_append_bits(uint32_t val, uint8_t num_bits, uint8_t bu
     }
 }
 
-static inline int32_t lierre_get_num_raw_data_modules(uint8_t ver)
+static inline int32_t get_num_raw_data_modules(uint8_t ver)
 {
     int32_t result, num_align;
 
@@ -377,26 +385,26 @@ static inline int32_t lierre_get_num_raw_data_modules(uint8_t ver)
     return result;
 }
 
-static inline int32_t lierre_get_num_data_codewords(uint8_t version, uint8_t ecl)
+static inline int32_t get_num_data_codewords(uint8_t version, uint8_t ecl)
 {
     if (ecl > 3 || version < 1 || version > 40) {
-        return LIERRE_DATA_CODEWORDS[0][version < 1 ? 1 : (version > 40 ? 40 : version)];
+        return DATA_CODEWORDS[0][version < 1 ? 1 : (version > 40 ? 40 : version)];
     }
 
-    return LIERRE_DATA_CODEWORDS[ecl][version];
+    return DATA_CODEWORDS[ecl][version];
 }
 
-static inline void lierre_add_ecc_and_interleave(uint8_t data[], uint8_t version, uint8_t ecl, uint8_t result[])
+static inline void add_ecc_and_interleave(uint8_t data[], uint8_t version, uint8_t ecl, uint8_t result[])
 {
     const uint8_t *dat;
+    poporon_t *pprn;
     uint8_t num_blocks, block_ecc_len, num_short_blocks, short_block_data_len, *ecc;
     int32_t raw_codewords, data_len, i, j, k, dat_len;
-    poporon_t *pprn;
 
-    num_blocks = LIERRE_NUM_ERROR_CORRECTION_BLOCKS[ecl][version];
-    block_ecc_len = LIERRE_ECC_CODEWORDS_PER_BLOCK[ecl][version];
-    raw_codewords = lierre_get_num_raw_data_modules(version) >> 3;
-    data_len = lierre_get_num_data_codewords(version, ecl);
+    num_blocks = NUM_ERROR_CORRECTION_BLOCKS[ecl][version];
+    block_ecc_len = ECC_CODEWORDS_PER_BLOCK[ecl][version];
+    raw_codewords = get_num_raw_data_modules(version) >> 3;
+    data_len = get_num_data_codewords(version, ecl);
     num_short_blocks = num_blocks - raw_codewords % num_blocks;
     short_block_data_len = raw_codewords / num_blocks - block_ecc_len;
 
@@ -430,7 +438,7 @@ static inline void lierre_add_ecc_and_interleave(uint8_t data[], uint8_t version
     poporon_destroy(pprn);
 }
 
-static inline uint8_t lierre_get_alignment_pattern_positions(uint8_t version, uint8_t result[7])
+static inline uint8_t get_alignment_pattern_positions(uint8_t version, uint8_t result[7])
 {
     uint8_t num_align, step, i, pos;
 
@@ -450,7 +458,7 @@ static inline uint8_t lierre_get_alignment_pattern_positions(uint8_t version, ui
     return num_align;
 }
 
-static inline void lierre_fill_rectangle(int32_t left, int32_t top, int32_t width, int32_t height, uint8_t qrcode[])
+static inline void fill_rectangle(int32_t left, int32_t top, int32_t width, int32_t height, uint8_t qrcode[])
 {
     int32_t dx, dy, qrsize, index, byte_idx, bit_idx;
 
@@ -466,7 +474,7 @@ static inline void lierre_fill_rectangle(int32_t left, int32_t top, int32_t widt
     }
 }
 
-static inline bool lierre_get_module(const uint8_t qrcode[], int32_t x, int32_t y)
+static inline bool get_module(const uint8_t qrcode[], int32_t x, int32_t y)
 {
     int32_t qrsize, index;
 
@@ -480,7 +488,7 @@ static inline bool lierre_get_module(const uint8_t qrcode[], int32_t x, int32_t 
     return ((qrcode[(index >> 3) + 1] >> (index & 7)) & 1) != 0;
 }
 
-static inline void lierre_set_module(uint8_t qrcode[], int32_t x, int32_t y, bool is_dark)
+static inline void set_module(uint8_t qrcode[], int32_t x, int32_t y, bool is_dark)
 {
     int32_t qrsize, index, bit_idx, byte_idx;
 
@@ -500,27 +508,27 @@ static inline void lierre_set_module(uint8_t qrcode[], int32_t x, int32_t y, boo
     }
 }
 
-static inline void lierre_initialize_function_modules(uint8_t version, uint8_t qrcode[])
+static inline void initialize_function_modules(uint8_t version, uint8_t qrcode[])
 {
     uint8_t qrsize, align_pat_pos[7], num_align, i, j;
 
-    qrsize = LIERRE_QR_VERSION_SIZE_FORMULA(version);
+    qrsize = QR_VERSION_SIZE_FORMULA(version);
     lmemset(qrcode, 0, (size_t)(((qrsize * qrsize + 7) >> 3) + 1) * sizeof(qrcode[0]));
     qrcode[0] = qrsize;
 
-    lierre_fill_rectangle(TIMING_PATTERN_POSITION, 0, 1, qrsize, qrcode);
-    lierre_fill_rectangle(0, TIMING_PATTERN_POSITION, qrsize, 1, qrcode);
+    fill_rectangle(TIMING_PATTERN_POSITION, 0, 1, qrsize, qrcode);
+    fill_rectangle(0, TIMING_PATTERN_POSITION, qrsize, 1, qrcode);
 
-    lierre_fill_rectangle(0, 0, FINDER_CORNER_SIZE, FINDER_CORNER_SIZE, qrcode);
-    lierre_fill_rectangle(qrsize - FINDER_QUIET_SIZE, 0, FINDER_QUIET_SIZE, FINDER_CORNER_SIZE, qrcode);
-    lierre_fill_rectangle(0, qrsize - FINDER_QUIET_SIZE, FINDER_CORNER_SIZE, FINDER_QUIET_SIZE, qrcode);
+    fill_rectangle(0, 0, FINDER_CORNER_SIZE, FINDER_CORNER_SIZE, qrcode);
+    fill_rectangle(qrsize - FINDER_QUIET_SIZE, 0, FINDER_QUIET_SIZE, FINDER_CORNER_SIZE, qrcode);
+    fill_rectangle(0, qrsize - FINDER_QUIET_SIZE, FINDER_CORNER_SIZE, FINDER_QUIET_SIZE, qrcode);
 
-    num_align = lierre_get_alignment_pattern_positions(version, align_pat_pos);
+    num_align = get_alignment_pattern_positions(version, align_pat_pos);
 
     for (i = 0; i < num_align; i++) {
         for (j = 0; j < num_align; j++) {
             if (!((i == 0 && j == 0) || (i == 0 && j == num_align - 1) || (i == num_align - 1 && j == 0))) {
-                lierre_fill_rectangle(align_pat_pos[i] - ALIGNMENT_PATTERN_OFFSET,
+                fill_rectangle(align_pat_pos[i] - ALIGNMENT_PATTERN_OFFSET,
                                       align_pat_pos[j] - ALIGNMENT_PATTERN_OFFSET, ALIGNMENT_PATTERN_SIZE,
                                       ALIGNMENT_PATTERN_SIZE, qrcode);
             }
@@ -528,14 +536,14 @@ static inline void lierre_initialize_function_modules(uint8_t version, uint8_t q
     }
 
     if (version >= VERSION_INFO_MIN) {
-        lierre_fill_rectangle(qrsize - VERSION_INFO_OFFSET, 0, VERSION_INFO_AREA_WIDTH, VERSION_INFO_AREA_HEIGHT,
+        fill_rectangle(qrsize - VERSION_INFO_OFFSET, 0, VERSION_INFO_AREA_WIDTH, VERSION_INFO_AREA_HEIGHT,
                               qrcode);
-        lierre_fill_rectangle(0, qrsize - VERSION_INFO_OFFSET, VERSION_INFO_AREA_HEIGHT, VERSION_INFO_AREA_WIDTH,
+        fill_rectangle(0, qrsize - VERSION_INFO_OFFSET, VERSION_INFO_AREA_HEIGHT, VERSION_INFO_AREA_WIDTH,
                               qrcode);
     }
 }
 
-static inline void lierre_draw_light_function_modules(uint8_t qrcode[], uint8_t version)
+static inline void draw_light_function_modules(uint8_t qrcode[], uint8_t version)
 {
     uint32_t bits;
     uint8_t align_pat_pos[7], num_align;
@@ -543,8 +551,8 @@ static inline void lierre_draw_light_function_modules(uint8_t qrcode[], uint8_t 
 
     qrsize = qrcode[0];
     for (i = TIMING_PATTERN_START; i < qrsize - TIMING_PATTERN_START; i += 2) {
-        lierre_set_module(qrcode, TIMING_PATTERN_POSITION, i, false);
-        lierre_set_module(qrcode, i, TIMING_PATTERN_POSITION, false);
+        set_module(qrcode, TIMING_PATTERN_POSITION, i, false);
+        set_module(qrcode, i, TIMING_PATTERN_POSITION, false);
     }
 
     for (dy = -FINDER_PATTERN_RADIUS; dy <= FINDER_PATTERN_RADIUS; dy++) {
@@ -556,14 +564,14 @@ static inline void lierre_draw_light_function_modules(uint8_t qrcode[], uint8_t 
             }
 
             if (dist == ALIGNMENT_PATTERN_OFFSET || dist == FINDER_PATTERN_RADIUS) {
-                lierre_set_module(qrcode, FINDER_PATTERN_CENTER + dx, FINDER_PATTERN_CENTER + dy, false);
-                lierre_set_module(qrcode, qrsize - FINDER_PATTERN_RADIUS + dx, FINDER_PATTERN_CENTER + dy, false);
-                lierre_set_module(qrcode, FINDER_PATTERN_CENTER + dx, qrsize - FINDER_PATTERN_RADIUS + dy, false);
+                set_module(qrcode, FINDER_PATTERN_CENTER + dx, FINDER_PATTERN_CENTER + dy, false);
+                set_module(qrcode, qrsize - FINDER_PATTERN_RADIUS + dx, FINDER_PATTERN_CENTER + dy, false);
+                set_module(qrcode, FINDER_PATTERN_CENTER + dx, qrsize - FINDER_PATTERN_RADIUS + dy, false);
             }
         }
     }
 
-    num_align = lierre_get_alignment_pattern_positions(version, align_pat_pos);
+    num_align = get_alignment_pattern_positions(version, align_pat_pos);
     for (i = 0; i < num_align; i++) {
         for (j = 0; j < num_align; j++) {
             if ((i == 0 && j == 0) || (i == 0 && j == num_align - 1) || (i == num_align - 1 && j == 0)) {
@@ -572,7 +580,7 @@ static inline void lierre_draw_light_function_modules(uint8_t qrcode[], uint8_t 
 
             for (dy = -1; dy <= 1; dy++) {
                 for (dx = -1; dx <= 1; dx++) {
-                    lierre_set_module(qrcode, align_pat_pos[i] + dx, align_pat_pos[j] + dy, dx == 0 && dy == 0);
+                    set_module(qrcode, align_pat_pos[i] + dx, align_pat_pos[j] + dy, dx == 0 && dy == 0);
                 }
             }
         }
@@ -591,15 +599,15 @@ static inline void lierre_draw_light_function_modules(uint8_t qrcode[], uint8_t 
             for (j = 0; j < VERSION_INFO_AREA_WIDTH; j++) {
                 k = qrsize - VERSION_INFO_OFFSET + j;
 
-                lierre_set_module(qrcode, k, i, (bits & 1) != 0);
-                lierre_set_module(qrcode, i, k, (bits & 1) != 0);
+                set_module(qrcode, k, i, (bits & 1) != 0);
+                set_module(qrcode, i, k, (bits & 1) != 0);
                 bits >>= 1;
             }
         }
     }
 }
 
-static inline void lierre_draw_format_bits(uint8_t ecl, int8_t mask, uint8_t qrcode[])
+static inline void draw_format_bits(uint8_t ecl, int8_t mask, uint8_t qrcode[])
 {
     static const int32_t table[] = {1, 0, 3, 2};
     int32_t data, rem, bits_val, qrsize, i;
@@ -614,31 +622,31 @@ static inline void lierre_draw_format_bits(uint8_t ecl, int8_t mask, uint8_t qrc
     bits_val = (data << FORMAT_DATA_SHIFT | rem) ^ FORMAT_XOR_MASK;
 
     for (i = 0; i <= 5; i++) {
-        lierre_set_module(qrcode, 8, i, ((bits_val >> i) & 1) != 0);
+        set_module(qrcode, 8, i, ((bits_val >> i) & 1) != 0);
     }
 
-    lierre_set_module(qrcode, 8, 7, ((bits_val >> 6) & 1) != 0);
-    lierre_set_module(qrcode, 8, 8, ((bits_val >> 7) & 1) != 0);
-    lierre_set_module(qrcode, 7, 8, ((bits_val >> 8) & 1) != 0);
+    set_module(qrcode, 8, 7, ((bits_val >> 6) & 1) != 0);
+    set_module(qrcode, 8, 8, ((bits_val >> 7) & 1) != 0);
+    set_module(qrcode, 7, 8, ((bits_val >> 8) & 1) != 0);
 
     for (i = FORMAT_BITS_LOOP_START; i < FORMAT_BITS_COUNT; i++) {
-        lierre_set_module(qrcode, 14 - i, 8, ((bits_val >> i) & 1) != 0);
+        set_module(qrcode, 14 - i, 8, ((bits_val >> i) & 1) != 0);
     }
 
     qrsize = qrcode[0];
 
     for (i = 0; i < FINDER_QUIET_SIZE; i++) {
-        lierre_set_module(qrcode, qrsize - 1 - i, 8, ((bits_val >> i) & 1) != 0);
+        set_module(qrcode, qrsize - 1 - i, 8, ((bits_val >> i) & 1) != 0);
     }
 
     for (i = FINDER_QUIET_SIZE; i < FORMAT_BITS_COUNT; i++) {
-        lierre_set_module(qrcode, 8, qrsize - FORMAT_BITS_COUNT + i, ((bits_val >> i) & 1) != 0);
+        set_module(qrcode, 8, qrsize - FORMAT_BITS_COUNT + i, ((bits_val >> i) & 1) != 0);
     }
 
-    lierre_set_module(qrcode, 8, qrsize - FINDER_QUIET_SIZE, true);
+    set_module(qrcode, 8, qrsize - FINDER_QUIET_SIZE, true);
 }
 
-static inline void lierre_draw_codewords(const uint8_t data[], int32_t data_len, uint8_t qrcode[])
+static inline void draw_codewords(const uint8_t data[], int32_t data_len, uint8_t qrcode[])
 {
     int32_t qrsize, bit_idx, right, vert, j, x, y;
     bool upward, dark;
@@ -657,9 +665,9 @@ static inline void lierre_draw_codewords(const uint8_t data[], int32_t data_len,
                 upward = ((right + 1) & 2) == 0;
                 y = upward ? qrsize - 1 - vert : vert;
 
-                if (!lierre_get_module(qrcode, x, y) && bit_idx < data_len * 8) {
+                if (!get_module(qrcode, x, y) && bit_idx < data_len * 8) {
                     dark = ((data[bit_idx >> 3] >> (7 - (bit_idx & 7))) & 1) != 0;
-                    lierre_set_module(qrcode, x, y, dark);
+                    set_module(qrcode, x, y, dark);
                     bit_idx++;
                 }
             }
@@ -667,7 +675,7 @@ static inline void lierre_draw_codewords(const uint8_t data[], int32_t data_len,
     }
 }
 
-static inline void lierre_apply_mask(const uint8_t function_modules[], uint8_t qrcode[], int8_t mask)
+static inline void apply_mask(const uint8_t function_modules[], uint8_t qrcode[], int8_t mask)
 {
     int32_t qrsize, y, x;
     bool invert, val;
@@ -676,7 +684,7 @@ static inline void lierre_apply_mask(const uint8_t function_modules[], uint8_t q
 
     for (y = 0; y < qrsize; y++) {
         for (x = 0; x < qrsize; x++) {
-            if (lierre_get_module(function_modules, x, y)) {
+            if (get_module(function_modules, x, y)) {
                 continue;
             }
 
@@ -710,13 +718,13 @@ static inline void lierre_apply_mask(const uint8_t function_modules[], uint8_t q
                 break;
             }
 
-            val = lierre_get_module(qrcode, x, y);
-            lierre_set_module(qrcode, x, y, val ^ invert);
+            val = get_module(qrcode, x, y);
+            set_module(qrcode, x, y, val ^ invert);
         }
     }
 }
 
-static inline int32_t lierre_finder_penalty_add_history(int32_t current_run_len,
+static inline int32_t finder_penalty_add_history(int32_t current_run_len,
                                                         int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
 {
     if (run_history[0] == 0) {
@@ -729,7 +737,7 @@ static inline int32_t lierre_finder_penalty_add_history(int32_t current_run_len,
     return current_run_len;
 }
 
-static inline int32_t lierre_finder_penalty_count_patterns(const int32_t run_history[PENALTY_HISTORY_SIZE],
+static inline int32_t finder_penalty_count_patterns(const int32_t run_history[PENALTY_HISTORY_SIZE],
                                                            int32_t qrsize)
 {
     int32_t n;
@@ -742,22 +750,22 @@ static inline int32_t lierre_finder_penalty_count_patterns(const int32_t run_his
            (core && run_history[6] >= n * 4 && run_history[0] >= n ? 1 : 0);
 }
 
-static inline int32_t lierre_finder_penalty_terminate(bool current_run_color, int32_t current_run_len,
+static inline int32_t finder_penalty_terminate(bool current_run_color, int32_t current_run_len,
                                                       int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
 {
     if (current_run_color) {
-        lierre_finder_penalty_add_history(current_run_len, run_history, qrsize);
+        finder_penalty_add_history(current_run_len, run_history, qrsize);
         current_run_len = 0;
     }
 
     current_run_len += qrsize;
 
-    lierre_finder_penalty_add_history(current_run_len, run_history, qrsize);
+    finder_penalty_add_history(current_run_len, run_history, qrsize);
 
-    return lierre_finder_penalty_count_patterns(run_history, qrsize);
+    return finder_penalty_count_patterns(run_history, qrsize);
 }
 
-static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
+static inline int32_t get_penalty_score(const uint8_t qrcode[])
 {
     int32_t qrsize, y, x, run_x, run_y, run_history[PENALTY_HISTORY_SIZE], dark, total, k, result;
     bool run_color, color;
@@ -771,7 +779,7 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
         lmemset(run_history, 0, sizeof(run_history));
 
         for (x = 0; x < qrsize; x++) {
-            if (lierre_get_module(qrcode, x, y) == run_color) {
+            if (get_module(qrcode, x, y) == run_color) {
                 run_x++;
                 if (run_x == PENALTY_RUN_THRESHOLD) {
                     result += PENALTY_RUN_BASE;
@@ -779,15 +787,15 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
                     result++;
                 }
             } else {
-                lierre_finder_penalty_add_history(run_x, run_history, qrsize);
+                finder_penalty_add_history(run_x, run_history, qrsize);
                 if (!run_color) {
-                    result += lierre_finder_penalty_count_patterns(run_history, qrsize) * PENALTY_FINDER_LIKE;
+                    result += finder_penalty_count_patterns(run_history, qrsize) * PENALTY_FINDER_LIKE;
                 }
-                run_color = lierre_get_module(qrcode, x, y);
+                run_color = get_module(qrcode, x, y);
                 run_x = 1;
             }
         }
-        result += lierre_finder_penalty_terminate(run_color, run_x, run_history, qrsize) * PENALTY_FINDER_LIKE;
+        result += finder_penalty_terminate(run_color, run_x, run_history, qrsize) * PENALTY_FINDER_LIKE;
     }
 
     for (x = 0; x < qrsize; x++) {
@@ -796,7 +804,7 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
         lmemset(run_history, 0, sizeof(run_history));
 
         for (y = 0; y < qrsize; y++) {
-            if (lierre_get_module(qrcode, x, y) == run_color) {
+            if (get_module(qrcode, x, y) == run_color) {
                 run_y++;
                 if (run_y == PENALTY_RUN_THRESHOLD) {
                     result += PENALTY_RUN_BASE;
@@ -804,23 +812,23 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
                     result++;
                 }
             } else {
-                lierre_finder_penalty_add_history(run_y, run_history, qrsize);
+                finder_penalty_add_history(run_y, run_history, qrsize);
                 if (!run_color) {
-                    result += lierre_finder_penalty_count_patterns(run_history, qrsize) * PENALTY_FINDER_LIKE;
+                    result += finder_penalty_count_patterns(run_history, qrsize) * PENALTY_FINDER_LIKE;
                 }
-                run_color = lierre_get_module(qrcode, x, y);
+                run_color = get_module(qrcode, x, y);
                 run_y = 1;
             }
         }
 
-        result += lierre_finder_penalty_terminate(run_color, run_y, run_history, qrsize) * PENALTY_FINDER_LIKE;
+        result += finder_penalty_terminate(run_color, run_y, run_history, qrsize) * PENALTY_FINDER_LIKE;
     }
 
     for (y = 0; y < qrsize - 1; y++) {
         for (x = 0; x < qrsize - 1; x++) {
-            color = lierre_get_module(qrcode, x, y);
-            if (color == lierre_get_module(qrcode, x + 1, y) && color == lierre_get_module(qrcode, x, y + 1) &&
-                color == lierre_get_module(qrcode, x + 1, y + 1)) {
+            color = get_module(qrcode, x, y);
+            if (color == get_module(qrcode, x + 1, y) && color == get_module(qrcode, x, y + 1) &&
+                color == get_module(qrcode, x + 1, y + 1)) {
                 result += PENALTY_2X2_BLOCK;
             }
         }
@@ -829,7 +837,7 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
     dark = 0;
     for (y = 0; y < qrsize; y++) {
         for (x = 0; x < qrsize; x++) {
-            if (lierre_get_module(qrcode, x, y)) {
+            if (get_module(qrcode, x, y)) {
                 dark++;
             }
         }
@@ -848,7 +856,7 @@ static inline int32_t lierre_get_penalty_score(const uint8_t qrcode[])
     return result;
 }
 
-static inline bool lierre_is_numeric_data(const uint8_t *data, size_t data_len)
+static inline bool is_numeric_data(const uint8_t *data, size_t data_len)
 {
     size_t i;
 
@@ -861,7 +869,7 @@ static inline bool lierre_is_numeric_data(const uint8_t *data, size_t data_len)
     return true;
 }
 
-static inline int32_t lierre_numeric_count_bits(uint8_t version, size_t char_count)
+static inline int32_t numeric_count_bits(uint8_t version, size_t char_count)
 {
     int32_t count_bits;
 
@@ -879,18 +887,17 @@ static inline int32_t lierre_numeric_count_bits(uint8_t version, size_t char_cou
                 : ((char_count % NUMERIC_GROUP_SIZE == 2) ? NUMERIC_REMAINDER2_BITS : 0));
 }
 
-static inline bool lierre_encode_numeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
+static inline bool encode_numeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                          uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
-    int8_t version, best_mask;
-    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
-    int32_t count_bits, value;
     uint8_t pad_byte;
+    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits, value;
+    int8_t version, best_mask;
     size_t idx;
 
     for (version = min_version;; version++) {
-        data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * 8;
-        data_used_bits = lierre_numeric_count_bits(version, data_len);
+        data_capacity_bits = get_num_data_codewords(version, ecl) * 8;
+        data_used_bits = numeric_count_bits(version, data_len);
 
         if (data_used_bits <= data_capacity_bits) {
             break;
@@ -910,72 +917,72 @@ static inline bool lierre_encode_numeric(const uint8_t *data, size_t data_len, u
         count_bits = NUMERIC_BITS_LARGE;
     }
 
-    lmemset(qrcode, 0, (size_t)LIERRE_QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
+    lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
-    lierre_append_bits(QR_MODE_NUMERIC_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    lierre_append_bits((uint32_t)data_len, count_bits, qrcode, &bit_len);
+    append_bits(QR_MODE_NUMERIC_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits((uint32_t)data_len, count_bits, qrcode, &bit_len);
 
     idx = 0;
     while (idx + NUMERIC_GROUP_SIZE <= data_len) {
         value = (data[idx] - '0') * 100 + (data[idx + 1] - '0') * 10 + (data[idx + 2] - '0');
-        lierre_append_bits((uint32_t)value, NUMERIC_GROUP_BITS, qrcode, &bit_len);
+        append_bits((uint32_t)value, NUMERIC_GROUP_BITS, qrcode, &bit_len);
         idx += NUMERIC_GROUP_SIZE;
     }
 
     if (data_len - idx == 2) {
         value = (data[idx] - '0') * 10 + (data[idx + 1] - '0');
-        lierre_append_bits((uint32_t)value, NUMERIC_REMAINDER2_BITS, qrcode, &bit_len);
+        append_bits((uint32_t)value, NUMERIC_REMAINDER2_BITS, qrcode, &bit_len);
     } else if (data_len - idx == 1) {
         value = data[idx] - '0';
-        lierre_append_bits((uint32_t)value, NUMERIC_REMAINDER1_BITS, qrcode, &bit_len);
+        append_bits((uint32_t)value, NUMERIC_REMAINDER1_BITS, qrcode, &bit_len);
     }
 
-    data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+    data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
     terminator_bits = data_capacity_bits - bit_len;
 
     if (terminator_bits > QR_TERMINATOR_MAX_BITS) {
         terminator_bits = QR_TERMINATOR_MAX_BITS;
     }
 
-    lierre_append_bits(0, terminator_bits, qrcode, &bit_len);
-    lierre_append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
+    append_bits(0, terminator_bits, qrcode, &bit_len);
+    append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
 
     for (pad_byte = PAD_BYTE_FIRST; bit_len < data_capacity_bits; pad_byte ^= PAD_BYTE_FIRST ^ PAD_BYTE_SECOND) {
-        lierre_append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
-    lierre_initialize_function_modules(version, qrcode);
-    lierre_draw_codewords(temp_buffer, lierre_get_num_raw_data_modules(version) >> 3, qrcode);
-    lierre_draw_light_function_modules(qrcode, version);
-    lierre_initialize_function_modules(version, temp_buffer);
+    add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
+    initialize_function_modules(version, qrcode);
+    draw_codewords(temp_buffer, get_num_raw_data_modules(version) >> 3, qrcode);
+    draw_light_function_modules(qrcode, version);
+    initialize_function_modules(version, temp_buffer);
 
     if (mask < 0) {
         min_penalty = INT32_MAX;
         best_mask = 0;
 
         for (i = 0; i < QR_MASK_COUNT; i++) {
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
-            lierre_draw_format_bits(ecl, (int8_t)i, qrcode);
-            penalty = lierre_get_penalty_score(qrcode);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
+            draw_format_bits(ecl, (int8_t)i, qrcode);
+            penalty = get_penalty_score(qrcode);
 
             if (penalty < min_penalty) {
                 best_mask = (int8_t)i;
                 min_penalty = penalty;
             }
 
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
         }
         mask = best_mask;
     }
 
-    lierre_apply_mask(temp_buffer, qrcode, mask);
-    lierre_draw_format_bits(ecl, mask, qrcode);
+    apply_mask(temp_buffer, qrcode, mask);
+    draw_format_bits(ecl, mask, qrcode);
 
     return true;
 }
 
-static inline int8_t lierre_alphanumeric_char_value(uint8_t c)
+static inline int8_t alphanumeric_char_value(uint8_t c)
 {
     if (c >= '0' && c <= '9') {
         return (int8_t)(c - '0');
@@ -1009,12 +1016,12 @@ static inline int8_t lierre_alphanumeric_char_value(uint8_t c)
     }
 }
 
-static inline bool lierre_is_alphanumeric_data(const uint8_t *data, size_t data_len)
+static inline bool is_alphanumeric_data(const uint8_t *data, size_t data_len)
 {
     size_t i;
 
     for (i = 0; i < data_len; i++) {
-        if (lierre_alphanumeric_char_value(data[i]) < 0) {
+        if (alphanumeric_char_value(data[i]) < 0) {
             return false;
         }
     }
@@ -1022,7 +1029,7 @@ static inline bool lierre_is_alphanumeric_data(const uint8_t *data, size_t data_
     return true;
 }
 
-static inline int32_t lierre_alphanumeric_count_bits(uint8_t version, size_t char_count)
+static inline int32_t alphanumeric_count_bits(uint8_t version, size_t char_count)
 {
     int32_t count_bits;
 
@@ -1039,19 +1046,18 @@ static inline int32_t lierre_alphanumeric_count_bits(uint8_t version, size_t cha
            ((char_count % ALPHANUMERIC_GROUP_SIZE) ? ALPHANUMERIC_REMAINDER_BITS : 0);
 }
 
-static inline bool lierre_encode_alphanumeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[],
+static inline bool encode_alphanumeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[],
                                               uint8_t qrcode[], uint8_t ecl, int8_t min_version, int8_t max_version,
                                               int8_t mask)
 {
-    int8_t version, best_mask;
-    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
-    int32_t count_bits, value;
     uint8_t pad_byte;
+    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits, value;
+    int8_t version, best_mask;
     size_t idx;
 
     for (version = min_version;; version++) {
-        data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * 8;
-        data_used_bits = lierre_alphanumeric_count_bits(version, data_len);
+        data_capacity_bits = get_num_data_codewords(version, ecl) * 8;
+        data_used_bits = alphanumeric_count_bits(version, data_len);
 
         if (data_used_bits <= data_capacity_bits) {
             break;
@@ -1071,70 +1077,70 @@ static inline bool lierre_encode_alphanumeric(const uint8_t *data, size_t data_l
         count_bits = ALPHA_BITS_LARGE;
     }
 
-    lmemset(qrcode, 0, (size_t)LIERRE_QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
+    lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
-    lierre_append_bits(QR_MODE_ALPHANUMERIC_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    lierre_append_bits((uint32_t)data_len, count_bits, qrcode, &bit_len);
+    append_bits(QR_MODE_ALPHANUMERIC_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits((uint32_t)data_len, count_bits, qrcode, &bit_len);
 
     idx = 0;
     while (idx + ALPHANUMERIC_GROUP_SIZE <= data_len) {
-        value = lierre_alphanumeric_char_value(data[idx]) * ALPHANUMERIC_CHARSET_SIZE +
-                lierre_alphanumeric_char_value(data[idx + 1]);
-        lierre_append_bits((uint32_t)value, ALPHANUMERIC_GROUP_BITS, qrcode, &bit_len);
+        value = alphanumeric_char_value(data[idx]) * ALPHANUMERIC_CHARSET_SIZE +
+                alphanumeric_char_value(data[idx + 1]);
+        append_bits((uint32_t)value, ALPHANUMERIC_GROUP_BITS, qrcode, &bit_len);
         idx += ALPHANUMERIC_GROUP_SIZE;
     }
 
     if (data_len - idx == 1) {
-        value = lierre_alphanumeric_char_value(data[idx]);
-        lierre_append_bits((uint32_t)value, ALPHANUMERIC_REMAINDER_BITS, qrcode, &bit_len);
+        value = alphanumeric_char_value(data[idx]);
+        append_bits((uint32_t)value, ALPHANUMERIC_REMAINDER_BITS, qrcode, &bit_len);
     }
 
-    data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+    data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
     terminator_bits = data_capacity_bits - bit_len;
 
     if (terminator_bits > QR_TERMINATOR_MAX_BITS) {
         terminator_bits = QR_TERMINATOR_MAX_BITS;
     }
 
-    lierre_append_bits(0, terminator_bits, qrcode, &bit_len);
-    lierre_append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
+    append_bits(0, terminator_bits, qrcode, &bit_len);
+    append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
 
     for (pad_byte = PAD_BYTE_FIRST; bit_len < data_capacity_bits; pad_byte ^= PAD_BYTE_FIRST ^ PAD_BYTE_SECOND) {
-        lierre_append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
-    lierre_initialize_function_modules(version, qrcode);
-    lierre_draw_codewords(temp_buffer, lierre_get_num_raw_data_modules(version) >> 3, qrcode);
-    lierre_draw_light_function_modules(qrcode, version);
-    lierre_initialize_function_modules(version, temp_buffer);
+    add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
+    initialize_function_modules(version, qrcode);
+    draw_codewords(temp_buffer, get_num_raw_data_modules(version) >> 3, qrcode);
+    draw_light_function_modules(qrcode, version);
+    initialize_function_modules(version, temp_buffer);
 
     if (mask < 0) {
         min_penalty = INT32_MAX;
         best_mask = 0;
 
         for (i = 0; i < QR_MASK_COUNT; i++) {
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
-            lierre_draw_format_bits(ecl, (int8_t)i, qrcode);
-            penalty = lierre_get_penalty_score(qrcode);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
+            draw_format_bits(ecl, (int8_t)i, qrcode);
+            penalty = get_penalty_score(qrcode);
 
             if (penalty < min_penalty) {
                 best_mask = (int8_t)i;
                 min_penalty = penalty;
             }
 
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
         }
         mask = best_mask;
     }
 
-    lierre_apply_mask(temp_buffer, qrcode, mask);
-    lierre_draw_format_bits(ecl, mask, qrcode);
+    apply_mask(temp_buffer, qrcode, mask);
+    draw_format_bits(ecl, mask, qrcode);
 
     return true;
 }
 
-static inline bool lierre_is_kanji_byte_pair(uint8_t high, uint8_t low)
+static inline bool is_kanji_byte_pair(uint8_t high, uint8_t low)
 {
     uint16_t code;
 
@@ -1144,7 +1150,7 @@ static inline bool lierre_is_kanji_byte_pair(uint8_t high, uint8_t low)
            (code >= KANJI_SJIS_RANGE2_START && code <= KANJI_SJIS_RANGE2_END);
 }
 
-static inline bool lierre_is_kanji_data(const uint8_t *data, size_t data_len)
+static inline bool is_kanji_data(const uint8_t *data, size_t data_len)
 {
     size_t i;
 
@@ -1153,7 +1159,7 @@ static inline bool lierre_is_kanji_data(const uint8_t *data, size_t data_len)
     }
 
     for (i = 0; i < data_len; i += 2) {
-        if (!lierre_is_kanji_byte_pair(data[i], data[i + 1])) {
+        if (!is_kanji_byte_pair(data[i], data[i + 1])) {
             return false;
         }
     }
@@ -1161,7 +1167,7 @@ static inline bool lierre_is_kanji_data(const uint8_t *data, size_t data_len)
     return true;
 }
 
-static inline int32_t lierre_kanji_count_bits(uint8_t version, size_t char_count)
+static inline int32_t kanji_count_bits(uint8_t version, size_t char_count)
 {
     int32_t count_bits;
 
@@ -1176,21 +1182,21 @@ static inline int32_t lierre_kanji_count_bits(uint8_t version, size_t char_count
     return QR_MODE_INDICATOR_BITS + count_bits + (int32_t)char_count * KANJI_ENCODED_BITS;
 }
 
-static inline bool lierre_encode_kanji(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
+static inline bool encode_kanji(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                        uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
+    uint16_t sjis_char;
+    uint8_t pad_byte;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits,
         high_byte, low_byte, intermediate, encoded_value;
     int8_t version, best_mask;
-    uint16_t sjis_char;
-    uint8_t pad_byte;
     size_t idx, char_count;
 
     char_count = data_len / 2;
 
     for (version = min_version;; version++) {
-        data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * 8;
-        data_used_bits = lierre_kanji_count_bits(version, char_count);
+        data_capacity_bits = get_num_data_codewords(version, ecl) * 8;
+        data_used_bits = kanji_count_bits(version, char_count);
 
         if (data_used_bits <= data_capacity_bits) {
             break;
@@ -1210,10 +1216,10 @@ static inline bool lierre_encode_kanji(const uint8_t *data, size_t data_len, uin
         count_bits = KANJI_BITS_LARGE;
     }
 
-    lmemset(qrcode, 0, (size_t)LIERRE_QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
+    lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
-    lierre_append_bits(QR_MODE_KANJI_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    lierre_append_bits((uint32_t)char_count, count_bits, qrcode, &bit_len);
+    append_bits(QR_MODE_KANJI_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits((uint32_t)char_count, count_bits, qrcode, &bit_len);
 
     for (idx = 0; idx < data_len; idx += 2) {
         sjis_char = ((uint16_t)data[idx] << 8) | data[idx + 1];
@@ -1228,55 +1234,55 @@ static inline bool lierre_encode_kanji(const uint8_t *data, size_t data_len, uin
         low_byte = intermediate & 0xFF;
         encoded_value = high_byte * KANJI_ENCODE_MULTIPLIER + low_byte;
 
-        lierre_append_bits((uint32_t)encoded_value, KANJI_ENCODED_BITS, qrcode, &bit_len);
+        append_bits((uint32_t)encoded_value, KANJI_ENCODED_BITS, qrcode, &bit_len);
     }
 
-    data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+    data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
     terminator_bits = data_capacity_bits - bit_len;
 
     if (terminator_bits > QR_TERMINATOR_MAX_BITS) {
         terminator_bits = QR_TERMINATOR_MAX_BITS;
     }
 
-    lierre_append_bits(0, terminator_bits, qrcode, &bit_len);
-    lierre_append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
+    append_bits(0, terminator_bits, qrcode, &bit_len);
+    append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
 
     for (pad_byte = PAD_BYTE_FIRST; bit_len < data_capacity_bits; pad_byte ^= PAD_BYTE_FIRST ^ PAD_BYTE_SECOND) {
-        lierre_append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
-    lierre_initialize_function_modules(version, qrcode);
-    lierre_draw_codewords(temp_buffer, lierre_get_num_raw_data_modules(version) >> 3, qrcode);
-    lierre_draw_light_function_modules(qrcode, version);
-    lierre_initialize_function_modules(version, temp_buffer);
+    add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
+    initialize_function_modules(version, qrcode);
+    draw_codewords(temp_buffer, get_num_raw_data_modules(version) >> 3, qrcode);
+    draw_light_function_modules(qrcode, version);
+    initialize_function_modules(version, temp_buffer);
 
     if (mask < 0) {
         min_penalty = INT32_MAX;
         best_mask = 0;
 
         for (i = 0; i < QR_MASK_COUNT; i++) {
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
-            lierre_draw_format_bits(ecl, (int8_t)i, qrcode);
-            penalty = lierre_get_penalty_score(qrcode);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
+            draw_format_bits(ecl, (int8_t)i, qrcode);
+            penalty = get_penalty_score(qrcode);
 
             if (penalty < min_penalty) {
                 best_mask = (int8_t)i;
                 min_penalty = penalty;
             }
 
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
         }
         mask = best_mask;
     }
 
-    lierre_apply_mask(temp_buffer, qrcode, mask);
-    lierre_draw_format_bits(ecl, mask, qrcode);
+    apply_mask(temp_buffer, qrcode, mask);
+    draw_format_bits(ecl, mask, qrcode);
 
     return true;
 }
 
-static inline int32_t lierre_eci_header_bits(uint32_t eci_value)
+static inline int32_t eci_header_bits(uint32_t eci_value)
 {
     if (eci_value <= ECI_SINGLE_BYTE_MAX) {
         return QR_MODE_INDICATOR_BITS + QR_PAD_BYTE_BITS;
@@ -1287,20 +1293,19 @@ static inline int32_t lierre_eci_header_bits(uint32_t eci_value)
     }
 }
 
-static inline bool lierre_encode_eci(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
+static inline bool encode_eci(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                      uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask,
                                      uint32_t eci_value)
 {
     uint8_t pad_byte;
+    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, ehb;
     int8_t version, best_mask;
-    int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
-    int32_t eci_header_bits;
 
-    eci_header_bits = lierre_eci_header_bits(eci_value);
+    ehb = eci_header_bits(eci_value);
 
     for (version = min_version;; version++) {
-        data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
-        data_used_bits = eci_header_bits + QR_MODE_INDICATOR_BITS +
+        data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+        data_used_bits = ehb + QR_MODE_INDICATOR_BITS +
                          ((version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE) +
                          (int32_t)data_len * QR_PAD_BYTE_BITS;
 
@@ -1314,84 +1319,84 @@ static inline bool lierre_encode_eci(const uint8_t *data, size_t data_len, uint8
         }
     }
 
-    lmemset(qrcode, 0, (size_t)LIERRE_QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
+    lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
 
-    lierre_append_bits(QR_MODE_ECI_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits(QR_MODE_ECI_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
 
     if (eci_value <= ECI_SINGLE_BYTE_MAX) {
-        lierre_append_bits(eci_value, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(eci_value, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     } else if (eci_value <= ECI_DOUBLE_BYTE_MAX) {
-        lierre_append_bits(ECI_PREFIX_2BYTE | ((eci_value >> 8) & ECI_MASK_2BYTE), QR_PAD_BYTE_BITS, qrcode, &bit_len);
-        lierre_append_bits(eci_value & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(ECI_PREFIX_2BYTE | ((eci_value >> 8) & ECI_MASK_2BYTE), QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(eci_value & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     } else {
-        lierre_append_bits(ECI_PREFIX_3BYTE | ((eci_value >> 16) & ECI_MASK_3BYTE), QR_PAD_BYTE_BITS, qrcode, &bit_len);
-        lierre_append_bits((eci_value >> 8) & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
-        lierre_append_bits(eci_value & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(ECI_PREFIX_3BYTE | ((eci_value >> 16) & ECI_MASK_3BYTE), QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits((eci_value >> 8) & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(eci_value & 0xFF, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    lierre_append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
+    append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
                        qrcode, &bit_len);
 
     for (i = 0; i < (int32_t)data_len; i++) {
-        lierre_append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+    data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
     terminator_bits = data_capacity_bits - bit_len;
 
     if (terminator_bits > QR_TERMINATOR_MAX_BITS) {
         terminator_bits = QR_TERMINATOR_MAX_BITS;
     }
 
-    lierre_append_bits(0, terminator_bits, qrcode, &bit_len);
-    lierre_append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
+    append_bits(0, terminator_bits, qrcode, &bit_len);
+    append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
 
     for (pad_byte = PAD_BYTE_FIRST; bit_len < data_capacity_bits; pad_byte ^= PAD_BYTE_FIRST ^ PAD_BYTE_SECOND) {
-        lierre_append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
-    lierre_initialize_function_modules(version, qrcode);
-    lierre_draw_codewords(temp_buffer, lierre_get_num_raw_data_modules(version) >> 3, qrcode);
-    lierre_draw_light_function_modules(qrcode, version);
-    lierre_initialize_function_modules(version, temp_buffer);
+    add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
+    initialize_function_modules(version, qrcode);
+    draw_codewords(temp_buffer, get_num_raw_data_modules(version) >> 3, qrcode);
+    draw_light_function_modules(qrcode, version);
+    initialize_function_modules(version, temp_buffer);
 
     if (mask < 0) {
         min_penalty = INT32_MAX;
         best_mask = 0;
 
         for (i = 0; i < QR_MASK_COUNT; i++) {
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
-            lierre_draw_format_bits(ecl, (int8_t)i, qrcode);
-            penalty = lierre_get_penalty_score(qrcode);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
+            draw_format_bits(ecl, (int8_t)i, qrcode);
+            penalty = get_penalty_score(qrcode);
 
             if (penalty < min_penalty) {
                 best_mask = (int8_t)i;
                 min_penalty = penalty;
             }
 
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
         }
         mask = best_mask;
     }
 
-    lierre_apply_mask(temp_buffer, qrcode, mask);
-    lierre_draw_format_bits(ecl, mask, qrcode);
+    apply_mask(temp_buffer, qrcode, mask);
+    draw_format_bits(ecl, mask, qrcode);
 
     return true;
 }
 
-static inline bool lierre_encode_binary(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
+static inline bool encode_binary(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
                                         uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
     uint8_t pad_byte;
-    int8_t version, best_mask;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
+    int8_t version, best_mask;
 
     for (version = min_version;; version++) {
-        data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+        data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
         data_used_bits = QR_MODE_INDICATOR_BITS +
                          ((version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE) +
                          (int32_t)data_len * QR_PAD_BYTE_BITS;
@@ -1406,69 +1411,59 @@ static inline bool lierre_encode_binary(const uint8_t *data, size_t data_len, ui
         }
     }
 
-    lmemset(qrcode, 0, (size_t)LIERRE_QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
+    lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
-    lierre_append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    lierre_append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
+    append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
+    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
                        qrcode, &bit_len);
 
     for (i = 0; i < (int32_t)data_len; i++) {
-        lierre_append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    data_capacity_bits = lierre_get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
+    data_capacity_bits = get_num_data_codewords(version, ecl) * QR_PAD_BYTE_BITS;
     terminator_bits = data_capacity_bits - bit_len;
 
     if (terminator_bits > QR_TERMINATOR_MAX_BITS) {
         terminator_bits = QR_TERMINATOR_MAX_BITS;
     }
 
-    lierre_append_bits(0, terminator_bits, qrcode, &bit_len);
-    lierre_append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
+    append_bits(0, terminator_bits, qrcode, &bit_len);
+    append_bits(0, (QR_PAD_BYTE_BITS - bit_len % QR_PAD_BYTE_BITS) % QR_PAD_BYTE_BITS, qrcode, &bit_len);
 
     for (pad_byte = PAD_BYTE_FIRST; bit_len < data_capacity_bits; pad_byte ^= PAD_BYTE_FIRST ^ PAD_BYTE_SECOND) {
-        lierre_append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
+        append_bits(pad_byte, QR_PAD_BYTE_BITS, qrcode, &bit_len);
     }
 
-    lierre_add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
-    lierre_initialize_function_modules(version, qrcode);
-    lierre_draw_codewords(temp_buffer, lierre_get_num_raw_data_modules(version) >> 3, qrcode);
-    lierre_draw_light_function_modules(qrcode, version);
-    lierre_initialize_function_modules(version, temp_buffer);
+    add_ecc_and_interleave(qrcode, version, ecl, temp_buffer);
+    initialize_function_modules(version, qrcode);
+    draw_codewords(temp_buffer, get_num_raw_data_modules(version) >> 3, qrcode);
+    draw_light_function_modules(qrcode, version);
+    initialize_function_modules(version, temp_buffer);
 
     if (mask < 0) {
         min_penalty = INT32_MAX;
         best_mask = 0;
 
         for (i = 0; i < QR_MASK_COUNT; i++) {
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
-            lierre_draw_format_bits(ecl, (int8_t)i, qrcode);
-            penalty = lierre_get_penalty_score(qrcode);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
+            draw_format_bits(ecl, (int8_t)i, qrcode);
+            penalty = get_penalty_score(qrcode);
 
             if (penalty < min_penalty) {
                 best_mask = (int8_t)i;
                 min_penalty = penalty;
             }
 
-            lierre_apply_mask(temp_buffer, qrcode, (int8_t)i);
+            apply_mask(temp_buffer, qrcode, (int8_t)i);
         }
         mask = best_mask;
     }
 
-    lierre_apply_mask(temp_buffer, qrcode, mask);
-    lierre_draw_format_bits(ecl, mask, qrcode);
+    apply_mask(temp_buffer, qrcode, mask);
+    draw_format_bits(ecl, mask, qrcode);
 
     return true;
-}
-
-static inline int32_t lierre_get_qr_size(const uint8_t qrcode[])
-{
-    return qrcode[0];
-}
-
-static inline bool lierre_get_qr_module(const uint8_t qrcode[], int32_t x, int32_t y)
-{
-    return lierre_get_module(qrcode, x, y);
 }
 
 extern lierre_error_t lierre_writer_param_init(lierre_writer_param_t *param, uint8_t *data, size_t data_size,
@@ -1526,7 +1521,7 @@ extern lierre_qr_version_t lierre_writer_qr_version(const lierre_writer_param_t 
     }
 
     for (ver = 1; ver <= 40; ver++) {
-        if ((size_t)LIERRE_CHAR_CAPACITY[ecl][ver][mode_idx] >= char_count) {
+        if ((size_t)CHAR_CAPACITY[ecl][ver][mode_idx] >= char_count) {
             return ver;
         }
     }
@@ -1548,7 +1543,7 @@ extern bool lierre_writer_get_res(const lierre_writer_param_t *param, lierre_res
         return false;
     }
 
-    qr_size = (size_t)LIERRE_QR_VERSION_SIZE_FORMULA(ver);
+    qr_size = (size_t)QR_VERSION_SIZE_FORMULA(ver);
     total_size = (qr_size + param->margin * 2) * param->scale;
 
     res->width = total_size;
@@ -1666,7 +1661,7 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
     uint8_t *temp_buffer, *qr_buffer, *pixel;
     int32_t qr_size, x, y, px, py;
     size_t scale, margin, sx, sy, img_x, img_y, offset;
-    bool is_dark;
+    bool is_dark, encode_success;
 
     if (!writer || !writer->param || !writer->data || !writer->data->data) {
         return LIERRE_ERROR_INVALID_PARAMS;
@@ -1677,8 +1672,8 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
         return LIERRE_ERROR_SIZE_EXCEEDED;
     }
 
-    temp_buffer = lcalloc(1, LIERRE_QR_BUFFER_LEN_MAX);
-    qr_buffer = lcalloc(1, LIERRE_QR_BUFFER_LEN_MAX);
+    temp_buffer = lcalloc(1, QR_BUFFER_LEN_MAX);
+    qr_buffer = lcalloc(1, QR_BUFFER_LEN_MAX);
     if (!temp_buffer || !qr_buffer) {
         lfree(temp_buffer);
         lfree(qr_buffer);
@@ -1686,33 +1681,33 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
         return LIERRE_ERROR_DATA_OVERFLOW;
     }
 
-    bool encode_success = false;
+    encode_success = false;
 
     switch (writer->param->mode) {
     case MODE_NUMERIC:
         encode_success =
-            lierre_encode_numeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+            encode_numeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                                   (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     case MODE_ALPHANUMERIC:
         encode_success =
-            lierre_encode_alphanumeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+            encode_alphanumeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                                        (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     case MODE_KANJI:
         encode_success =
-            lierre_encode_kanji(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+            encode_kanji(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                                 (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     case MODE_ECI:
         encode_success =
-            lierre_encode_eci(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+            encode_eci(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                               (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern, 26);
         break;
     case MODE_BYTE:
     default:
         encode_success =
-            lierre_encode_binary(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+            encode_binary(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                                  (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     }
@@ -1724,7 +1719,7 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
         return LIERRE_ERROR_SIZE_EXCEEDED;
     }
 
-    qr_size = lierre_get_qr_size(qr_buffer);
+    qr_size = qr_buffer[0];
     scale = writer->param->scale;
     margin = writer->param->margin;
 
@@ -1742,7 +1737,7 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
 
     for (py = 0; py < qr_size; py++) {
         for (px = 0; px < qr_size; px++) {
-            is_dark = lierre_get_qr_module(qr_buffer, px, py);
+            is_dark = get_module(qr_buffer, px, py);
             for (sy = 0; sy < scale; sy++) {
                 for (sx = 0; sx < scale; sx++) {
                     img_x = (margin + (size_t)px) * scale + sx;

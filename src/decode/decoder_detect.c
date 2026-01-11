@@ -26,7 +26,7 @@
 #define NUM_CORNERS      4
 #define NUM_EDGE_SAMPLES 2
 
-static inline void flood_fill_line(lierre_decoder_t *decoder, int32_t x, int32_t y, lierre_pixel_t source_color,
+static inline void flood_fill_line(decoder_t *decoder, int32_t x, int32_t y, lierre_pixel_t source_color,
                                    lierre_pixel_t target_color, span_callback_t callback, void *user_data,
                                    int32_t *left_out, int32_t *right_out)
 {
@@ -57,13 +57,13 @@ static inline void flood_fill_line(lierre_decoder_t *decoder, int32_t x, int32_t
     }
 }
 
-static inline lierre_flood_fill_vars_t *flood_fill_scan_next(lierre_decoder_t *decoder, lierre_pixel_t *row,
+static inline flood_fill_vars_t *flood_fill_scan_next(decoder_t *decoder, lierre_pixel_t *row,
                                                              lierre_pixel_t source_color, lierre_pixel_t target_color,
                                                              span_callback_t callback, void *user_data,
-                                                             lierre_flood_fill_vars_t *current_state, int32_t direction)
+                                                             flood_fill_vars_t *current_state, int32_t direction)
 {
     int32_t *scan_position, next_left;
-    lierre_flood_fill_vars_t *next_state;
+    flood_fill_vars_t *next_state;
 
     scan_position = (direction < 0) ? &current_state->left_up : &current_state->left_down;
 
@@ -86,10 +86,10 @@ static inline lierre_flood_fill_vars_t *flood_fill_scan_next(lierre_decoder_t *d
     return NULL;
 }
 
-void flood_fill_seed(lierre_decoder_t *decoder, int32_t seed_x, int32_t seed_y, lierre_pixel_t source_color,
+void flood_fill_seed(decoder_t *decoder, int32_t seed_x, int32_t seed_y, lierre_pixel_t source_color,
                      lierre_pixel_t target_color, span_callback_t callback, void *user_data)
 {
-    lierre_flood_fill_vars_t *stack, *next_state, *current_state, *stack_limit;
+    flood_fill_vars_t *stack, *next_state, *current_state, *stack_limit;
     lierre_pixel_t *row;
     int32_t next_left;
 
@@ -146,16 +146,16 @@ static inline void region_area_callback(void *user_data, int32_t y, int32_t left
 {
     (void)y;
 
-    lierre_region_t *region;
+    region_t *region;
 
-    region = (lierre_region_t *)user_data;
+    region = (region_t *)user_data;
     region->count += right - left + 1;
 }
 
-int32_t get_or_create_region(lierre_decoder_t *decoder, int32_t x, int32_t y)
+int32_t get_or_create_region(decoder_t *decoder, int32_t x, int32_t y)
 {
     lierre_pixel_t pixel;
-    lierre_region_t *region_data;
+    region_t *region_data;
     int32_t region_id;
 
     if (x < 0 || y < 0 || x >= decoder->w || y >= decoder->h) {
@@ -238,10 +238,10 @@ static inline void find_remaining_corners_callback(void *user_data, int32_t y, i
     }
 }
 
-void find_region_corners(lierre_decoder_t *decoder, int32_t region_id, const lierre_decoder_point_t *reference,
-                         lierre_decoder_point_t *corners)
+void find_region_corners(decoder_t *decoder, int32_t region_id, const decoder_point_t *reference,
+                         decoder_point_t *corners)
 {
-    lierre_region_t *region;
+    region_t *region;
     corner_finder_data_t finder = {0};
     int32_t i;
 
@@ -272,10 +272,10 @@ void find_region_corners(lierre_decoder_t *decoder, int32_t region_id, const lie
                     find_remaining_corners_callback, &finder);
 }
 
-static inline void record_capstone(lierre_decoder_t *decoder, int32_t ring_region_id, int32_t stone_region_id)
+static inline void record_capstone(decoder_t *decoder, int32_t ring_region_id, int32_t stone_region_id)
 {
-    lierre_region_t *stone_region, *ring_region;
-    lierre_capstone_t *capstone;
+    region_t *stone_region, *ring_region;
+    capstone_t *capstone;
     int32_t capstone_index;
 
     if (decoder->num_capstones >= LIERRE_DECODER_MAX_CAPSTONES) {
@@ -300,9 +300,9 @@ static inline void record_capstone(lierre_decoder_t *decoder, int32_t ring_regio
     perspective_map(capstone->c, FINDER_PATTERN_CENTER, FINDER_PATTERN_CENTER, &capstone->center);
 }
 
-static inline void test_capstone(lierre_decoder_t *decoder, uint32_t x, uint32_t y, uint32_t *pattern_widths)
+static inline void test_capstone(decoder_t *decoder, uint32_t x, uint32_t y, uint32_t *pattern_widths)
 {
-    lierre_region_t *stone_region_data, *ring_region_data;
+    region_t *stone_region_data, *ring_region_data;
     uint32_t area_ratio;
     int32_t ring_right_region, stone_region, ring_left_region;
 
@@ -341,7 +341,7 @@ static inline void test_capstone(lierre_decoder_t *decoder, uint32_t x, uint32_t
     record_capstone(decoder, ring_left_region, stone_region);
 }
 
-void scan_finder_patterns(lierre_decoder_t *decoder, uint32_t y)
+void scan_finder_patterns(decoder_t *decoder, uint32_t y)
 {
     lierre_pixel_t *row, current_color;
     uint32_t x, previous_color, run_length, run_count, pattern_widths[5] = {0}, average_width, tolerance, i;
@@ -392,9 +392,9 @@ void scan_finder_patterns(lierre_decoder_t *decoder, uint32_t y)
     }
 }
 
-void find_capstone_groups(lierre_decoder_t *decoder, int32_t capstone_index)
+void find_capstone_groups(decoder_t *decoder, int32_t capstone_index)
 {
-    lierre_capstone_t *current_capstone, *other_capstone;
+    capstone_t *current_capstone, *other_capstone;
     capstone_neighbour_list_t horizontal_list, vertical_list;
     capstone_neighbour_t *neighbour;
     int32_t j;

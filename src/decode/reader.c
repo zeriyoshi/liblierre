@@ -255,8 +255,8 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 {
     const uint8_t *pixel;
     lierre_reader_result_t *res;
-    lierre_decoder_t *decoder;
-    lierre_decoder_result_t *dec_result;
+    decoder_t *decoder;
+    decoder_result_t *dec_result;
     lierre_error_t err;
     uint32_t num_threads, scale, sum, dy, dx, scale_shift, temp;
     uint8_t *gray_data, *scaled_gray, r, g, b, gray;
@@ -267,7 +267,7 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
         return LIERRE_ERROR_INVALID_PARAMS;
     }
 
-    dec_result = lmalloc(sizeof(lierre_decoder_result_t));
+    dec_result = lmalloc(sizeof(decoder_result_t));
     if (!dec_result) {
         return LIERRE_ERROR_DATA_OVERFLOW;
     }
@@ -317,25 +317,25 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
 
     if (reader->param->strategy_flags & LIERRE_READER_STRATEGY_DENOISE) {
         if (use_mt) {
-            lierre_image_denoise_mt(gray_data, width, height, num_threads);
+            image_denoise_mt(gray_data, width, height, num_threads);
         } else {
-            lierre_image_denoise(gray_data, width, height);
+            image_denoise(gray_data, width, height);
         }
     }
 
     if (reader->param->strategy_flags & LIERRE_READER_STRATEGY_BRIGHTNESS_NORMALIZE) {
-        lierre_image_brightness_normalize(gray_data, width, height);
+        image_brightness_normalize(gray_data, width, height);
     }
 
     if (reader->param->strategy_flags & LIERRE_READER_STRATEGY_CONTRAST_NORMALIZE) {
-        lierre_image_contrast_normalize(gray_data, width, height);
+        image_contrast_normalize(gray_data, width, height);
     }
 
     if (reader->param->strategy_flags & LIERRE_READER_STRATEGY_SHARPENING) {
         if (use_mt) {
-            lierre_image_sharpen_mt(gray_data, width, height, num_threads);
+            image_sharpen_mt(gray_data, width, height, num_threads);
         } else {
-            lierre_image_sharpen(gray_data, width, height);
+            image_sharpen(gray_data, width, height);
         }
     }
 

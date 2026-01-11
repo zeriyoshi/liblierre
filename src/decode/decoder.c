@@ -15,7 +15,7 @@
 
 #define LIERRE_HISTOGRAM_SIZE 256
 
-static inline uint8_t compute_otsu_threshold(const lierre_decoder_t *decoder)
+static inline uint8_t compute_otsu_threshold(const decoder_t *decoder)
 {
     const uint8_t *image_ptr;
     uint64_t total_sum_int;
@@ -68,7 +68,7 @@ static inline uint8_t compute_otsu_threshold(const lierre_decoder_t *decoder)
     return (uint8_t)optimal_threshold;
 }
 
-static inline void binarize_image(lierre_decoder_t *decoder, uint8_t threshold)
+static inline void binarize_image(decoder_t *decoder, uint8_t threshold)
 {
     int32_t x, y;
     uint8_t *row, pixel_value;
@@ -168,10 +168,10 @@ static inline void binarize_image(lierre_decoder_t *decoder, uint8_t threshold)
 #endif
 }
 
-static inline int32_t decoder_resize(lierre_decoder_t *decoder, int32_t width, int32_t height)
+static inline int32_t decoder_resize(decoder_t *decoder, int32_t width, int32_t height)
 {
     lierre_pixel_t *pixels;
-    lierre_flood_fill_vars_t *vars;
+    flood_fill_vars_t *vars;
     uint8_t *image;
     size_t num_vars, vars_byte_size;
 
@@ -200,7 +200,7 @@ static inline int32_t decoder_resize(lierre_decoder_t *decoder, int32_t width, i
         num_vars = 1;
     }
 
-    vars_byte_size = sizeof(lierre_flood_fill_vars_t) * num_vars;
+    vars_byte_size = sizeof(flood_fill_vars_t) * num_vars;
     vars = lmalloc(vars_byte_size);
     if (!vars) {
         lfree(image);
@@ -236,7 +236,7 @@ static inline int32_t decoder_resize(lierre_decoder_t *decoder, int32_t width, i
 
 static inline void *decode_qr_thread(void *arg)
 {
-    decode_thread_context_t *ctx = (decode_thread_context_t *)arg;
+    decode_thread_ctx_t *ctx = (decode_thread_ctx_t *)arg;
 
     extract_qr_code(ctx->decoder, ctx->grid_index, &ctx->code);
     ctx->err = decode_qr(&ctx->code, &ctx->data);
@@ -244,11 +244,11 @@ static inline void *decode_qr_thread(void *arg)
     return NULL;
 }
 
-extern lierre_decoder_t *lierre_decoder_create(void)
+extern decoder_t *lierre_decoder_create(void)
 {
-    lierre_decoder_t *decoder;
+    decoder_t *decoder;
 
-    decoder = lcalloc(1, sizeof(lierre_decoder_t));
+    decoder = lcalloc(1, sizeof(decoder_t));
     if (!decoder) {
         return NULL;
     }
@@ -256,7 +256,7 @@ extern lierre_decoder_t *lierre_decoder_create(void)
     return decoder;
 }
 
-extern void lierre_decoder_destroy(lierre_decoder_t *decoder)
+extern void lierre_decoder_destroy(decoder_t *decoder)
 {
     if (!decoder) {
         return;
@@ -277,11 +277,11 @@ extern void lierre_decoder_destroy(lierre_decoder_t *decoder)
     lfree(decoder);
 }
 
-extern lierre_error_t lierre_decoder_process(lierre_decoder_t *decoder, const uint8_t *gray_image, int32_t width,
-                                             int32_t height, lierre_decoder_result_t *result)
+extern lierre_error_t lierre_decoder_process(decoder_t *decoder, const uint8_t *gray_image, int32_t width,
+                                             int32_t height, decoder_result_t *result)
 {
-    lierre_qr_code_t code;
-    lierre_qr_data_t data;
+    qr_code_t code;
+    qr_data_t data;
     lierre_error_t err;
     uint8_t threshold;
     int32_t row, i;
@@ -332,11 +332,11 @@ extern lierre_error_t lierre_decoder_process(lierre_decoder_t *decoder, const ui
     return LIERRE_ERROR_SUCCESS;
 }
 
-extern lierre_error_t lierre_decoder_process_mt(lierre_decoder_t *decoder, const uint8_t *gray_image, int32_t width,
-                                                int32_t height, lierre_decoder_result_t *result, uint32_t num_threads)
+extern lierre_error_t lierre_decoder_process_mt(decoder_t *decoder, const uint8_t *gray_image, int32_t width,
+                                                int32_t height, decoder_result_t *result, uint32_t num_threads)
 {
     lierre_thread_t *threads;
-    decode_thread_context_t *contexts;
+    decode_thread_ctx_t *contexts;
     uint32_t active_threads, t;
     uint8_t threshold;
     int32_t row, i;
@@ -381,7 +381,7 @@ extern lierre_error_t lierre_decoder_process_mt(lierre_decoder_t *decoder, const
     }
 
     threads = lmalloc(sizeof(lierre_thread_t) * num_threads);
-    contexts = lmalloc(sizeof(decode_thread_context_t) * decoder->num_grids);
+    contexts = lmalloc(sizeof(decode_thread_ctx_t) * decoder->num_grids);
     if (!threads || !contexts) {
         lfree(threads);
         lfree(contexts);

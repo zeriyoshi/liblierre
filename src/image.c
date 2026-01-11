@@ -610,7 +610,7 @@ static inline void *sharpening_filter_thread(void *arg)
     return NULL;
 }
 
-extern void lierre_image_brightness_normalize(uint8_t *image, size_t width, size_t height)
+extern void image_brightness_normalize(uint8_t *image, size_t width, size_t height)
 {
     size_t i, total;
     int32_t range;
@@ -633,7 +633,7 @@ extern void lierre_image_brightness_normalize(uint8_t *image, size_t width, size
     }
 }
 
-extern void lierre_image_contrast_normalize(uint8_t *image, size_t width, size_t height)
+extern void image_contrast_normalize(uint8_t *image, size_t width, size_t height)
 {
     size_t i, total;
     int64_t sum64;
@@ -665,7 +665,7 @@ extern void lierre_image_contrast_normalize(uint8_t *image, size_t width, size_t
     }
 }
 
-extern void lierre_image_denoise_mt(uint8_t *image, size_t width, size_t height, uint32_t num_threads)
+extern void image_denoise_mt(uint8_t *image, size_t width, size_t height, uint32_t num_threads)
 {
     lierre_thread_t *threads;
     lierre_image_mt_filter_ctx_t *contexts;
@@ -724,7 +724,7 @@ extern void lierre_image_denoise_mt(uint8_t *image, size_t width, size_t height,
     lfree(temp);
 }
 
-extern void lierre_image_denoise(uint8_t *image, size_t width, size_t height)
+extern void image_denoise(uint8_t *image, size_t width, size_t height)
 {
     int32_t sum;
     uint8_t *temp;
@@ -757,7 +757,7 @@ extern void lierre_image_denoise(uint8_t *image, size_t width, size_t height)
     lfree(temp);
 }
 
-extern void lierre_image_sharpen_mt(uint8_t *image, size_t width, size_t height, uint32_t num_threads)
+extern void image_sharpen_mt(uint8_t *image, size_t width, size_t height, uint32_t num_threads)
 {
     lierre_thread_t *threads;
     lierre_image_mt_filter_ctx_t *contexts;
@@ -816,7 +816,7 @@ extern void lierre_image_sharpen_mt(uint8_t *image, size_t width, size_t height,
     lfree(temp);
 }
 
-extern void lierre_image_sharpen(uint8_t *image, size_t width, size_t height)
+extern void image_sharpen(uint8_t *image, size_t width, size_t height)
 {
     int32_t val;
     uint8_t *temp;

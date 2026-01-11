@@ -51,7 +51,7 @@
 
 #define SQUARENESS_THRESHOLD 0.2
 
-const lierre_version_info_t lierre_version_db[LIERRE_DECODER_MAX_VERSION + 1] = {
+const version_info_t lierre_version_db[LIERRE_DECODER_MAX_VERSION + 1] = {
     {0, {0}, {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0}}},
     {26, {0}, {{26, 16, 1}, {26, 19, 1}, {26, 9, 1}, {26, 13, 1}}},
     {44, {6, 18, 0}, {{44, 28, 1}, {44, 34, 1}, {44, 16, 1}, {44, 22, 1}}},
@@ -94,7 +94,7 @@ const lierre_version_info_t lierre_version_db[LIERRE_DECODER_MAX_VERSION + 1] = 
     {3532, {6, 26, 54, 82, 110, 138, 166, 0}, {{75, 47, 40}, {147, 117, 20}, {45, 15, 10}, {54, 24, 43}}},
     {3706, {6, 30, 58, 86, 114, 142, 170, 0}, {{75, 47, 18}, {148, 118, 19}, {45, 15, 20}, {54, 24, 34}}}};
 
-extern void perspective_map(const double *coeffs, double u, double v, lierre_decoder_point_t *result)
+extern void perspective_map(const double *coeffs, double u, double v, decoder_point_t *result)
 {
     double denominator, x, y;
 
@@ -106,7 +106,7 @@ extern void perspective_map(const double *coeffs, double u, double v, lierre_dec
     result->y = (int32_t)(y + ROUNDING_OFFSET);
 }
 
-extern void perspective_setup(double *coeffs, const lierre_decoder_point_t *corners, double width, double height)
+extern void perspective_setup(double *coeffs, const decoder_point_t *corners, double width, double height)
 {
     double x0, y0, x1, y1, x2, y2, x3, y3, width_denominator, height_denominator;
 
@@ -136,7 +136,7 @@ extern void perspective_setup(double *coeffs, const lierre_decoder_point_t *corn
     coeffs[7] = (-x2 * y3 + x1 * y3 + x3 * y2 + x0 * (y1 - y2) - x3 * y1 + (x2 - x1) * y0) * height_denominator;
 }
 
-extern void perspective_unmap(const double *coeffs, const lierre_decoder_point_t *image_point, double *grid_u,
+extern void perspective_unmap(const double *coeffs, const decoder_point_t *image_point, double *grid_u,
                               double *grid_v)
 {
     double x, y, denominator;
@@ -155,11 +155,11 @@ extern void perspective_unmap(const double *coeffs, const lierre_decoder_point_t
               denominator;
 }
 
-static inline int32_t compute_line_intersection(const lierre_decoder_point_t *line1_start,
-                                                const lierre_decoder_point_t *line1_end,
-                                                const lierre_decoder_point_t *line2_start,
-                                                const lierre_decoder_point_t *line2_end,
-                                                lierre_decoder_point_t *intersection)
+static inline int32_t compute_line_intersection(const decoder_point_t *line1_start,
+                                                const decoder_point_t *line1_end,
+                                                const decoder_point_t *line2_start,
+                                                const decoder_point_t *line2_end,
+                                                decoder_point_t *intersection)
 {
     int32_t a, b, c, d, e, f, determinant;
 
@@ -181,8 +181,8 @@ static inline int32_t compute_line_intersection(const lierre_decoder_point_t *li
     return 1;
 }
 
-static inline double compute_point_distance(const lierre_decoder_point_t *point_a,
-                                            const lierre_decoder_point_t *point_b)
+static inline double compute_point_distance(const decoder_point_t *point_a,
+                                            const decoder_point_t *point_b)
 {
     double delta_x, delta_y;
 
@@ -192,10 +192,10 @@ static inline double compute_point_distance(const lierre_decoder_point_t *point_
     return sqrt(delta_x * delta_x + delta_y * delta_y);
 }
 
-static inline void estimate_grid_size(lierre_decoder_t *decoder, int32_t grid_index)
+static inline void estimate_grid_size(decoder_t *decoder, int32_t grid_index)
 {
-    lierre_grid_t *grid;
-    lierre_capstone_t *cap_a, *cap_b, *cap_c;
+    grid_t *grid;
+    capstone_t *cap_a, *cap_b, *cap_c;
     int32_t version;
     double distance_ab, distance_bc, capstone_ab_size, capstone_bc_size, vertical_modules, horizontal_modules,
         average_modules;
@@ -231,10 +231,10 @@ static inline void estimate_grid_size(lierre_decoder_t *decoder, int32_t grid_in
     grid->grid_size = QR_VERSION_SIZE_INCREMENT * version + QR_VERSION1_SIZE;
 }
 
-static inline int32_t read_grid_cell(const lierre_decoder_t *decoder, int32_t grid_index, int32_t x, int32_t y)
+static inline int32_t read_grid_cell(const decoder_t *decoder, int32_t grid_index, int32_t x, int32_t y)
 {
-    const lierre_grid_t *grid;
-    lierre_decoder_point_t image_point;
+    const grid_t *grid;
+    decoder_point_t image_point;
 
     grid = &decoder->grids[grid_index];
     perspective_map(grid->c, (double)x + CELL_CENTER_OFFSET, (double)y + CELL_CENTER_OFFSET, &image_point);
@@ -246,12 +246,12 @@ static inline int32_t read_grid_cell(const lierre_decoder_t *decoder, int32_t gr
     return decoder->pixels[image_point.y * decoder->w + image_point.x] ? 1 : -1;
 }
 
-static inline int32_t compute_cell_fitness(const lierre_decoder_t *decoder, int32_t grid_index, int32_t x, int32_t y)
+static inline int32_t compute_cell_fitness(const decoder_t *decoder, int32_t grid_index, int32_t x, int32_t y)
 {
     static const double sample_offsets[CELL_SAMPLE_COUNT] = {CELL_SAMPLE_OFFSET_1, CELL_SAMPLE_OFFSET_2,
                                                              CELL_SAMPLE_OFFSET_3};
-    const lierre_grid_t *grid;
-    lierre_decoder_point_t image_point;
+    const grid_t *grid;
+    decoder_point_t image_point;
     int32_t score, sample_x, sample_y;
 
     grid = &decoder->grids[grid_index];
@@ -277,7 +277,7 @@ static inline int32_t compute_cell_fitness(const lierre_decoder_t *decoder, int3
     return score;
 }
 
-static inline int32_t compute_ring_fitness(const lierre_decoder_t *decoder, int32_t grid_index, int32_t center_x,
+static inline int32_t compute_ring_fitness(const decoder_t *decoder, int32_t grid_index, int32_t center_x,
                                            int32_t center_y, int32_t radius)
 {
     int32_t i, score;
@@ -294,7 +294,7 @@ static inline int32_t compute_ring_fitness(const lierre_decoder_t *decoder, int3
     return score;
 }
 
-static inline int32_t compute_alignment_pattern_fitness(const lierre_decoder_t *decoder, int32_t grid_index,
+static inline int32_t compute_alignment_pattern_fitness(const decoder_t *decoder, int32_t grid_index,
                                                         int32_t center_x, int32_t center_y)
 {
     return compute_cell_fitness(decoder, grid_index, center_x, center_y) -
@@ -302,7 +302,7 @@ static inline int32_t compute_alignment_pattern_fitness(const lierre_decoder_t *
            compute_ring_fitness(decoder, grid_index, center_x, center_y, ALIGNMENT_RING_RADIUS_2);
 }
 
-static inline int32_t compute_capstone_fitness(const lierre_decoder_t *decoder, int32_t grid_index, int32_t x,
+static inline int32_t compute_capstone_fitness(const decoder_t *decoder, int32_t grid_index, int32_t x,
                                                int32_t y)
 {
     x += FINDER_PATTERN_CENTER;
@@ -314,10 +314,10 @@ static inline int32_t compute_capstone_fitness(const lierre_decoder_t *decoder, 
            compute_ring_fitness(decoder, grid_index, x, y, ALIGNMENT_RING_RADIUS_3);
 }
 
-static inline int32_t compute_total_grid_fitness(const lierre_decoder_t *decoder, int32_t grid_index)
+static inline int32_t compute_total_grid_fitness(const decoder_t *decoder, int32_t grid_index)
 {
-    const lierre_grid_t *grid;
-    const lierre_version_info_t *version_info;
+    const grid_t *grid;
+    const version_info_t *version_info;
     int32_t version, score, i, j, alignment_count, expected_value;
 
     grid = &decoder->grids[grid_index];
@@ -362,9 +362,9 @@ static inline int32_t compute_total_grid_fitness(const lierre_decoder_t *decoder
     return score;
 }
 
-static inline void refine_perspective(lierre_decoder_t *decoder, int32_t grid_index)
+static inline void refine_perspective(decoder_t *decoder, int32_t grid_index)
 {
-    lierre_grid_t *grid;
+    grid_t *grid;
     int32_t best_fitness, pass, i, j, test_fitness;
     double adjustment_steps[LIERRE_DECODER_PERSPECTIVE_PARAMS], original_value, step, new_value;
 
@@ -417,14 +417,14 @@ static inline void find_leftmost_point_callback(void *user_data, int32_t y, int3
     }
 }
 
-static inline void search_alignment_pattern(lierre_decoder_t *decoder, int32_t grid_index)
+static inline void search_alignment_pattern(decoder_t *decoder, int32_t grid_index)
 {
     static const int32_t direction_dx[SPIRAL_DIRECTION_COUNT] = {1, 0, -1, 0},
                          direction_dy[SPIRAL_DIRECTION_COUNT] = {0, -1, 0, 1};
-    lierre_grid_t *grid;
-    lierre_capstone_t *capstone_a, *capstone_c;
-    lierre_decoder_point_t point_a, search_point, point_c;
-    lierre_region_t *region;
+    grid_t *grid;
+    capstone_t *capstone_a, *capstone_c;
+    decoder_point_t point_a, search_point, point_c;
+    region_t *region;
     int32_t expected_size, step_size, direction, i, region_id;
     double u, v;
 
@@ -469,10 +469,10 @@ static inline void search_alignment_pattern(lierre_decoder_t *decoder, int32_t g
     }
 }
 
-static inline void setup_grid_perspective(lierre_decoder_t *decoder, int32_t grid_index)
+static inline void setup_grid_perspective(decoder_t *decoder, int32_t grid_index)
 {
-    lierre_grid_t *grid;
-    lierre_decoder_point_t corner_points[4];
+    grid_t *grid;
+    decoder_point_t corner_points[4];
 
     grid = &decoder->grids[grid_index];
 
@@ -486,10 +486,10 @@ static inline void setup_grid_perspective(lierre_decoder_t *decoder, int32_t gri
     refine_perspective(decoder, grid_index);
 }
 
-static inline void rotate_capstone_corners(lierre_capstone_t *capstone, const lierre_decoder_point_t *origin,
-                                           const lierre_decoder_point_t *direction)
+static inline void rotate_capstone_corners(capstone_t *capstone, const decoder_point_t *origin,
+                                           const decoder_point_t *direction)
 {
-    lierre_decoder_point_t rotated_corners[NUM_CORNERS], *corner;
+    decoder_point_t rotated_corners[NUM_CORNERS], *corner;
     int32_t j, best_index, score, best_score;
 
     best_index = 0;
@@ -513,12 +513,12 @@ static inline void rotate_capstone_corners(lierre_capstone_t *capstone, const li
     perspective_setup(capstone->c, capstone->corners, (double)FINDER_PATTERN_SIZE, (double)FINDER_PATTERN_SIZE);
 }
 
-static inline void create_qr_grid(lierre_decoder_t *decoder, int32_t cap_a, int32_t cap_b, int32_t cap_c)
+static inline void create_qr_grid(decoder_t *decoder, int32_t cap_a, int32_t cap_b, int32_t cap_c)
 {
-    lierre_decoder_point_t origin, direction;
-    lierre_grid_t *grid;
-    lierre_capstone_t *capstone;
-    lierre_region_t *region;
+    decoder_point_t origin, direction;
+    grid_t *grid;
+    capstone_t *capstone;
+    region_t *region;
     corner_finder_data_t finder;
     int32_t i, grid_index, temp;
 
@@ -591,9 +591,9 @@ static inline void create_qr_grid(lierre_decoder_t *decoder, int32_t cap_a, int3
     setup_grid_perspective(decoder, grid_index);
 }
 
-void extract_qr_code(const lierre_decoder_t *decoder, int32_t grid_index, lierre_qr_code_t *code)
+void extract_qr_code(const decoder_t *decoder, int32_t grid_index, qr_code_t *code)
 {
-    const lierre_grid_t *grid;
+    const grid_t *grid;
     int32_t row, col, bit_index;
 
     lmemset(code, 0, sizeof(*code));
@@ -626,7 +626,7 @@ void extract_qr_code(const lierre_decoder_t *decoder, int32_t grid_index, lierre
     }
 }
 
-extern void test_neighbour_pairs(lierre_decoder_t *decoder, int32_t capstone_index,
+extern void test_neighbour_pairs(decoder_t *decoder, int32_t capstone_index,
                                  const capstone_neighbour_list_t *horizontal_list,
                                  const capstone_neighbour_list_t *vertical_list)
 {
