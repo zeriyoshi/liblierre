@@ -168,10 +168,10 @@ extern const version_info_t lierre_version_db[LIERRE_DECODER_MAX_VERSION + 1];
 
 decoder_t *lierre_decoder_create(void);
 void lierre_decoder_destroy(decoder_t *decoder);
-lierre_error_t lierre_decoder_process(decoder_t *decoder, const uint8_t *gray_image, int32_t width,
-                                      int32_t height, decoder_result_t *result);
-lierre_error_t lierre_decoder_process_mt(decoder_t *decoder, const uint8_t *gray_image, int32_t width,
-                                         int32_t height, decoder_result_t *result, uint32_t num_threads);
+lierre_error_t lierre_decoder_process(decoder_t *decoder, const uint8_t *gray_image, int32_t width, int32_t height,
+                                      decoder_result_t *result);
+lierre_error_t lierre_decoder_process_mt(decoder_t *decoder, const uint8_t *gray_image, int32_t width, int32_t height,
+                                         decoder_result_t *result, uint32_t num_threads);
 
 void flood_fill_seed(decoder_t *decoder, int32_t seed_x, int32_t seed_y, lierre_pixel_t source_color,
                      lierre_pixel_t target_color, span_callback_t callback, void *user_data);
@@ -185,8 +185,7 @@ void perspective_map(const double *coeffs, double u, double v, decoder_point_t *
 void perspective_setup(double *coeffs, const decoder_point_t *corners, double width, double height);
 void perspective_unmap(const double *coeffs, const decoder_point_t *image_point, double *grid_u, double *grid_v);
 void extract_qr_code(const decoder_t *decoder, int32_t grid_index, qr_code_t *code);
-void test_neighbour_pairs(decoder_t *decoder, int32_t capstone_index,
-                          const capstone_neighbour_list_t *horizontal_list,
+void test_neighbour_pairs(decoder_t *decoder, int32_t capstone_index, const capstone_neighbour_list_t *horizontal_list,
                           const capstone_neighbour_list_t *vertical_list);
 
 lierre_error_t decode_qr(const qr_code_t *code, qr_data_t *data);

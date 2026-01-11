@@ -58,9 +58,9 @@ static inline void flood_fill_line(decoder_t *decoder, int32_t x, int32_t y, lie
 }
 
 static inline flood_fill_vars_t *flood_fill_scan_next(decoder_t *decoder, lierre_pixel_t *row,
-                                                             lierre_pixel_t source_color, lierre_pixel_t target_color,
-                                                             span_callback_t callback, void *user_data,
-                                                             flood_fill_vars_t *current_state, int32_t direction)
+                                                      lierre_pixel_t source_color, lierre_pixel_t target_color,
+                                                      span_callback_t callback, void *user_data,
+                                                      flood_fill_vars_t *current_state, int32_t direction)
 {
     int32_t *scan_position, next_left;
     flood_fill_vars_t *next_state;

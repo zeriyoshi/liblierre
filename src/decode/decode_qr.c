@@ -7,9 +7,9 @@
  * SPDX-License-Identifier: MIT
  */
 
-#include "../internal/decoder.h"
-
 #include <poporon/bch.h>
+
+#include "../internal/decoder.h"
 
 #define FORMAT_BITS_COUNT      15
 #define FORMAT_XOR_MASK        0x5412
@@ -17,9 +17,9 @@
 #define FORMAT_ECC_LEVEL_SHIFT 3
 #define FORMAT_MASK_BITS       7
 
-#define FORMAT_BCH_SYMBOL_SIZE   4
-#define FORMAT_BCH_GEN_POLY      0x13
-#define FORMAT_BCH_CORRECTION_T  3
+#define FORMAT_BCH_SYMBOL_SIZE  4
+#define FORMAT_BCH_GEN_POLY     0x13
+#define FORMAT_BCH_CORRECTION_T 3
 
 #define FINDER_PATTERN_SIZE        7
 #define FINDER_EDGE_SIZE           8
@@ -27,7 +27,7 @@
 #define TIMING_PATTERN_POSITION    6
 #define VERSION_INFO_OFFSET        11
 #define VERSION_INFO_SIZE          6
-#define QR_VERSION1_SIZE    17
+#define QR_VERSION1_SIZE           17
 #define LIERRE_QR_VERSION_INFO_MIN 7
 
 #define MODE_NUMERIC      1
@@ -222,8 +222,7 @@ static inline int32_t is_reserved_cell(int32_t version, int32_t row, int32_t col
     return 0;
 }
 
-static inline void read_bit(const qr_code_t *code, qr_data_t *data, datastream_t *ds, int32_t row,
-                            int32_t col)
+static inline void read_bit(const qr_code_t *code, qr_data_t *data, datastream_t *ds, int32_t row, int32_t col)
 {
     int32_t bit_offset, byte_offset, value;
 
@@ -372,8 +371,7 @@ static inline int32_t take_bits(datastream_t *ds, int32_t count)
     return result;
 }
 
-static inline int32_t decode_numeric_tuple(qr_data_t *data, datastream_t *ds, int32_t bits,
-                                           int32_t digits)
+static inline int32_t decode_numeric_tuple(qr_data_t *data, datastream_t *ds, int32_t bits, int32_t digits)
 {
     int32_t value, i;
 

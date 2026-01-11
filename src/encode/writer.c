@@ -32,15 +32,14 @@
 #define FORMAT_BITS_LOOP_START 9
 
 /* QR Code version and size */
-#define QR_VERSION_MAX             40
-#define QR_VERSION_MIN             1
-#define QR_VERSION1_SIZE           17
-#define QR_VERSION_SIZE_FORMULA(v) ((v) * 4 + QR_VERSION1_SIZE)
-#define QR_BUFFER_LEN_FOR_VERSION(n) \
-    (((((n) * 4 + 17) * ((n) * 4 + 17) + 7) >> 3) + 1)
-#define QR_BUFFER_LEN_MAX QR_BUFFER_LEN_FOR_VERSION(QR_VERSION_MAX)
-#define QR_RS_DEGREE_MAX  30
-#define QR_MASK_COUNT     8
+#define QR_VERSION_MAX               40
+#define QR_VERSION_MIN               1
+#define QR_VERSION1_SIZE             17
+#define QR_VERSION_SIZE_FORMULA(v)   ((v) * 4 + QR_VERSION1_SIZE)
+#define QR_BUFFER_LEN_FOR_VERSION(n) (((((n) * 4 + 17) * ((n) * 4 + 17) + 7) >> 3) + 1)
+#define QR_BUFFER_LEN_MAX            QR_BUFFER_LEN_FOR_VERSION(QR_VERSION_MAX)
+#define QR_RS_DEGREE_MAX             30
+#define QR_MASK_COUNT                8
 
 /* QR Code mode indicators */
 #define QR_MODE_NUMERIC_INDICATOR      0x1
@@ -110,10 +109,10 @@
 #define ECI_BITS_3BYTE      24
 #define ECI_DEFAULT_VALUE   26
 
-#define FINDER_PATTERN_CENTER   3
-#define FINDER_PATTERN_RADIUS   4
-#define FINDER_QUIET_SIZE       8
-#define FINDER_CORNER_SIZE      9
+#define FINDER_PATTERN_CENTER 3
+#define FINDER_PATTERN_RADIUS 4
+#define FINDER_QUIET_SIZE     8
+#define FINDER_CORNER_SIZE    9
 
 #define TIMING_PATTERN_POSITION 6
 #define TIMING_PATTERN_START    7
@@ -528,18 +527,15 @@ static inline void initialize_function_modules(uint8_t version, uint8_t qrcode[]
     for (i = 0; i < num_align; i++) {
         for (j = 0; j < num_align; j++) {
             if (!((i == 0 && j == 0) || (i == 0 && j == num_align - 1) || (i == num_align - 1 && j == 0))) {
-                fill_rectangle(align_pat_pos[i] - ALIGNMENT_PATTERN_OFFSET,
-                                      align_pat_pos[j] - ALIGNMENT_PATTERN_OFFSET, ALIGNMENT_PATTERN_SIZE,
-                                      ALIGNMENT_PATTERN_SIZE, qrcode);
+                fill_rectangle(align_pat_pos[i] - ALIGNMENT_PATTERN_OFFSET, align_pat_pos[j] - ALIGNMENT_PATTERN_OFFSET,
+                               ALIGNMENT_PATTERN_SIZE, ALIGNMENT_PATTERN_SIZE, qrcode);
             }
         }
     }
 
     if (version >= VERSION_INFO_MIN) {
-        fill_rectangle(qrsize - VERSION_INFO_OFFSET, 0, VERSION_INFO_AREA_WIDTH, VERSION_INFO_AREA_HEIGHT,
-                              qrcode);
-        fill_rectangle(0, qrsize - VERSION_INFO_OFFSET, VERSION_INFO_AREA_HEIGHT, VERSION_INFO_AREA_WIDTH,
-                              qrcode);
+        fill_rectangle(qrsize - VERSION_INFO_OFFSET, 0, VERSION_INFO_AREA_WIDTH, VERSION_INFO_AREA_HEIGHT, qrcode);
+        fill_rectangle(0, qrsize - VERSION_INFO_OFFSET, VERSION_INFO_AREA_HEIGHT, VERSION_INFO_AREA_WIDTH, qrcode);
     }
 }
 
@@ -724,8 +720,8 @@ static inline void apply_mask(const uint8_t function_modules[], uint8_t qrcode[]
     }
 }
 
-static inline int32_t finder_penalty_add_history(int32_t current_run_len,
-                                                        int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
+static inline int32_t finder_penalty_add_history(int32_t current_run_len, int32_t run_history[PENALTY_HISTORY_SIZE],
+                                                 int32_t qrsize)
 {
     if (run_history[0] == 0) {
         current_run_len += qrsize;
@@ -737,8 +733,7 @@ static inline int32_t finder_penalty_add_history(int32_t current_run_len,
     return current_run_len;
 }
 
-static inline int32_t finder_penalty_count_patterns(const int32_t run_history[PENALTY_HISTORY_SIZE],
-                                                           int32_t qrsize)
+static inline int32_t finder_penalty_count_patterns(const int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
 {
     int32_t n;
     bool core;
@@ -751,7 +746,7 @@ static inline int32_t finder_penalty_count_patterns(const int32_t run_history[PE
 }
 
 static inline int32_t finder_penalty_terminate(bool current_run_color, int32_t current_run_len,
-                                                      int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
+                                               int32_t run_history[PENALTY_HISTORY_SIZE], int32_t qrsize)
 {
     if (current_run_color) {
         finder_penalty_add_history(current_run_len, run_history, qrsize);
@@ -888,7 +883,7 @@ static inline int32_t numeric_count_bits(uint8_t version, size_t char_count)
 }
 
 static inline bool encode_numeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
-                                         uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
+                                  uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
     uint8_t pad_byte;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits, value;
@@ -1046,9 +1041,8 @@ static inline int32_t alphanumeric_count_bits(uint8_t version, size_t char_count
            ((char_count % ALPHANUMERIC_GROUP_SIZE) ? ALPHANUMERIC_REMAINDER_BITS : 0);
 }
 
-static inline bool encode_alphanumeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[],
-                                              uint8_t qrcode[], uint8_t ecl, int8_t min_version, int8_t max_version,
-                                              int8_t mask)
+static inline bool encode_alphanumeric(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
+                                       uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
     uint8_t pad_byte;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, count_bits, value;
@@ -1084,8 +1078,7 @@ static inline bool encode_alphanumeric(const uint8_t *data, size_t data_len, uin
 
     idx = 0;
     while (idx + ALPHANUMERIC_GROUP_SIZE <= data_len) {
-        value = alphanumeric_char_value(data[idx]) * ALPHANUMERIC_CHARSET_SIZE +
-                alphanumeric_char_value(data[idx + 1]);
+        value = alphanumeric_char_value(data[idx]) * ALPHANUMERIC_CHARSET_SIZE + alphanumeric_char_value(data[idx + 1]);
         append_bits((uint32_t)value, ALPHANUMERIC_GROUP_BITS, qrcode, &bit_len);
         idx += ALPHANUMERIC_GROUP_SIZE;
     }
@@ -1183,7 +1176,7 @@ static inline int32_t kanji_count_bits(uint8_t version, size_t char_count)
 }
 
 static inline bool encode_kanji(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
-                                       uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
+                                uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
     uint16_t sjis_char;
     uint8_t pad_byte;
@@ -1294,8 +1287,7 @@ static inline int32_t eci_header_bits(uint32_t eci_value)
 }
 
 static inline bool encode_eci(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
-                                     uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask,
-                                     uint32_t eci_value)
+                              uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask, uint32_t eci_value)
 {
     uint8_t pad_byte;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty, ehb;
@@ -1336,8 +1328,8 @@ static inline bool encode_eci(const uint8_t *data, size_t data_len, uint8_t temp
     }
 
     append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
-                       qrcode, &bit_len);
+    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE, qrcode,
+                &bit_len);
 
     for (i = 0; i < (int32_t)data_len; i++) {
         append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
@@ -1389,7 +1381,7 @@ static inline bool encode_eci(const uint8_t *data, size_t data_len, uint8_t temp
 }
 
 static inline bool encode_binary(const uint8_t *data, size_t data_len, uint8_t temp_buffer[], uint8_t qrcode[],
-                                        uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
+                                 uint8_t ecl, int8_t min_version, int8_t max_version, int8_t mask)
 {
     uint8_t pad_byte;
     int32_t data_capacity_bits, data_used_bits, bit_len, terminator_bits, i, min_penalty, penalty;
@@ -1414,8 +1406,8 @@ static inline bool encode_binary(const uint8_t *data, size_t data_len, uint8_t t
     lmemset(qrcode, 0, (size_t)QR_BUFFER_LEN_FOR_VERSION(version) * sizeof(qrcode[0]));
     bit_len = 0;
     append_bits(QR_MODE_BYTE_INDICATOR, QR_MODE_INDICATOR_BITS, qrcode, &bit_len);
-    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE,
-                       qrcode, &bit_len);
+    append_bits((uint32_t)data_len, (version < VERSION_THRESHOLD_SMALL) ? BYTE_BITS_SMALL : BYTE_BITS_LARGE, qrcode,
+                &bit_len);
 
     for (i = 0; i < (int32_t)data_len; i++) {
         append_bits(data[i], QR_PAD_BYTE_BITS, qrcode, &bit_len);
@@ -1685,30 +1677,26 @@ extern lierre_error_t lierre_writer_write(lierre_writer_t *writer)
 
     switch (writer->param->mode) {
     case MODE_NUMERIC:
-        encode_success =
-            encode_numeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
-                                  (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
+        encode_success = encode_numeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+                                        (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     case MODE_ALPHANUMERIC:
         encode_success =
             encode_alphanumeric(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
-                                       (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
-        break;
-    case MODE_KANJI:
-        encode_success =
-            encode_kanji(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
                                 (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
+    case MODE_KANJI:
+        encode_success = encode_kanji(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+                                      (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
+        break;
     case MODE_ECI:
-        encode_success =
-            encode_eci(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
-                              (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern, 26);
+        encode_success = encode_eci(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+                                    (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern, 26);
         break;
     case MODE_BYTE:
     default:
-        encode_success =
-            encode_binary(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
-                                 (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
+        encode_success = encode_binary(writer->param->data, writer->param->data_size, temp_buffer, qr_buffer,
+                                       (uint8_t)writer->param->ecc_level, 1, 40, (int8_t)writer->param->mask_pattern);
         break;
     }
 

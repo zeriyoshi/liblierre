@@ -432,8 +432,8 @@ extern lierre_error_t lierre_reader_read(lierre_reader_t *reader, lierre_reader_
         lfree(gray_data);
     } else {
         if (use_mt) {
-            err = lierre_decoder_process_mt(decoder, gray_data, (int32_t)width, (int32_t)height, dec_result,
-                                            num_threads);
+            err =
+                lierre_decoder_process_mt(decoder, gray_data, (int32_t)width, (int32_t)height, dec_result, num_threads);
         } else {
             err = lierre_decoder_process(decoder, gray_data, (int32_t)width, (int32_t)height, dec_result);
         }

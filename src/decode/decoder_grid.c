@@ -136,8 +136,7 @@ extern void perspective_setup(double *coeffs, const decoder_point_t *corners, do
     coeffs[7] = (-x2 * y3 + x1 * y3 + x3 * y2 + x0 * (y1 - y2) - x3 * y1 + (x2 - x1) * y0) * height_denominator;
 }
 
-extern void perspective_unmap(const double *coeffs, const decoder_point_t *image_point, double *grid_u,
-                              double *grid_v)
+extern void perspective_unmap(const double *coeffs, const decoder_point_t *image_point, double *grid_u, double *grid_v)
 {
     double x, y, denominator;
 
@@ -155,10 +154,8 @@ extern void perspective_unmap(const double *coeffs, const decoder_point_t *image
               denominator;
 }
 
-static inline int32_t compute_line_intersection(const decoder_point_t *line1_start,
-                                                const decoder_point_t *line1_end,
-                                                const decoder_point_t *line2_start,
-                                                const decoder_point_t *line2_end,
+static inline int32_t compute_line_intersection(const decoder_point_t *line1_start, const decoder_point_t *line1_end,
+                                                const decoder_point_t *line2_start, const decoder_point_t *line2_end,
                                                 decoder_point_t *intersection)
 {
     int32_t a, b, c, d, e, f, determinant;
@@ -181,8 +178,7 @@ static inline int32_t compute_line_intersection(const decoder_point_t *line1_sta
     return 1;
 }
 
-static inline double compute_point_distance(const decoder_point_t *point_a,
-                                            const decoder_point_t *point_b)
+static inline double compute_point_distance(const decoder_point_t *point_a, const decoder_point_t *point_b)
 {
     double delta_x, delta_y;
 
@@ -294,16 +290,15 @@ static inline int32_t compute_ring_fitness(const decoder_t *decoder, int32_t gri
     return score;
 }
 
-static inline int32_t compute_alignment_pattern_fitness(const decoder_t *decoder, int32_t grid_index,
-                                                        int32_t center_x, int32_t center_y)
+static inline int32_t compute_alignment_pattern_fitness(const decoder_t *decoder, int32_t grid_index, int32_t center_x,
+                                                        int32_t center_y)
 {
     return compute_cell_fitness(decoder, grid_index, center_x, center_y) -
            compute_ring_fitness(decoder, grid_index, center_x, center_y, ALIGNMENT_RING_RADIUS_1) +
            compute_ring_fitness(decoder, grid_index, center_x, center_y, ALIGNMENT_RING_RADIUS_2);
 }
 
-static inline int32_t compute_capstone_fitness(const decoder_t *decoder, int32_t grid_index, int32_t x,
-                                               int32_t y)
+static inline int32_t compute_capstone_fitness(const decoder_t *decoder, int32_t grid_index, int32_t x, int32_t y)
 {
     x += FINDER_PATTERN_CENTER;
     y += FINDER_PATTERN_CENTER;
