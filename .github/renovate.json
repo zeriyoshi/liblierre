@@ -16,10 +16,19 @@
       ],
       "matchDepNames": [
         "third_party/emsdk",
-        "third_party/libpoporon",
         "third_party/unity"
       ],
       "versioning": "semver-coerced"
+    },
+    {
+      "description": "Semver without v prefix",
+      "matchManagers": [
+        "git-submodules"
+      ],
+      "matchDepNames": [
+        "third_party/libpoporon"
+      ],
+      "versioning": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$"
     },
     {
       "description": "Custom tag format",
